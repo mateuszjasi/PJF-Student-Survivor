@@ -56,7 +56,6 @@ while True:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 # game start
                 game_active = True
-                start_time = int(pygame.time.get_ticks() / 1000)
 
     if game_active:
         # game
