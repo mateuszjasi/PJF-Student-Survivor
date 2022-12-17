@@ -157,14 +157,17 @@ class Enemy(pygame.sprite.Sprite):
         #    dx, dy = dx / dist, dy / dist
         #    self.rect.x += dx * self.movement_speed
         #    self.rect.y += dy * self.movement_speed
-        if player.sprite.rect.centerx > self.rect.centerx:
-            self.rect.centerx += self.movement_speed
-        elif player.sprite.rect.centerx < self.rect.centerx:
-            self.rect.centerx -= self.movement_speed
-        if player.sprite.rect.centery > self.rect.centery:
-            self.rect.centery += self.movement_speed
-        elif player.sprite.rect.centery < self.rect.centery:
-            self.rect.centery -= self.movement_speed
+        if player.sprite.rect.centerx - self.rect.centerx != 0:
+            if player.sprite.rect.centerx > self.rect.centerx:
+                self.rect.centerx += self.movement_speed
+            if player.sprite.rect.centerx < self.rect.centerx:
+                self.rect.centerx -= self.movement_speed
+        if player.sprite.rect.centery - self.rect.centery != 0:
+            if player.sprite.rect.centery > self.rect.centery:
+                self.rect.centery += self.movement_speed
+            if player.sprite.rect.centery < self.rect.centery:
+                self.rect.centery -= self.movement_speed
+
 
     def prevent_overlap(self):
         for enemy in enemies:
