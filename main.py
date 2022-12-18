@@ -4,14 +4,33 @@ import math
 from sys import exit
 from random import randint
 
-pygame.init()
-screen = pygame.display.set_mode((1600, 900))
-pygame.display.set_caption('Dzikie fotele w twojej okolicy')
-clock = pygame.time.Clock()
-test_font = pygame.font.Font(None, 50)
-# Intro screen
-game_message = test_font.render('Press space to run', False, 'black')
-game_message_rect = game_message.get_rect(center=(800, 600))
+
+def main_menu():
+    screen.fill('lightgrey')
+    start_game_button.process()
+
+
+def pause_menu():
+    customButton.process()
+
+
+def game_update():
+    screen.fill('darkgrey')
+    player.draw(screen)
+    player.update()
+    enemies.draw(screen)
+    enemies.update()
+    bullets.draw(screen)
+    bullets.update()
+    global bullet_cooldown_tracker
+    bullet_cooldown_tracker += 1
+    # game_active = enemy_hit()
+
+
+def start_game():
+    global game_active
+    game_active = True
+    player.add(Player())
 
 
 def enemy_hit():
@@ -23,13 +42,52 @@ def enemy_hit():
     return True
 
 
+class Button:
+    def __init__(self, x, y, width, height, buttonText='Button', onclickFunction=None):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.onclickFunction = onclickFunction
+        self.alreadyPressed = False
+        self.fillColors = {
+            'normal': (255, 0, 0),
+            'hover': (200, 0, 0),
+            'pressed': (100, 0, 0),
+        }
+        self.buttonSurface = pygame.Surface((self.width, self.height))
+        self.buttonRect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.buttonRect.center = (self.x, self.y)
+        self.buttonSurf = button_font.render(buttonText, True, (0, 0, 0))
+        self.alreadyPressed = False
+
+    def process(self):
+        mouse_position = pygame.mouse.get_pos()
+        self.buttonSurface.fill(self.fillColors['normal'])
+        if self.buttonRect.collidepoint(mouse_position):
+            self.buttonSurface.fill(self.fillColors['hover'])
+            if pygame.mouse.get_pressed()[0]:
+                self.buttonSurface.fill(self.fillColors['pressed'])
+                if not self.alreadyPressed:
+                    self.onclickFunction()
+                    self.alreadyPressed = True
+            else:
+                self.alreadyPressed = False
+
+        self.buttonSurface.blit(self.buttonSurf, [
+            self.buttonRect.width / 2 - self.buttonSurf.get_rect().width / 2,
+            self.buttonRect.height / 2 - self.buttonSurf.get_rect().height / 2
+        ])
+        screen.blit(self.buttonSurface, self.buttonRect)
+
+
 class PlayerBullet(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
+        self.speed = 10
         mouse_x, mouse_y = pygame.mouse.get_pos()
         self.x = player.sprite.rect.centerx
         self.y = player.sprite.rect.centery
-        self.speed = 10
         self.angle = math.atan2(self.y - mouse_y, self.x - mouse_x)
         self.x_vel = math.cos(self.angle) * self.speed
         self.y_vel = math.sin(self.angle) * self.speed
@@ -59,6 +117,11 @@ class PlayerBullet(pygame.sprite.Sprite):
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
+        self.walking_right = False
+        self.walking_left = False
+        self.facing_right = True
+        self.speed = 3
+        self.bullet_cooldown = 10
         self.walking_animation = [pygame.image.load("graphics/player_walk_0.png"),
                                   pygame.image.load("graphics/player_walk_1.png"),
                                   pygame.image.load("graphics/player_walk_2.png"),
@@ -67,10 +130,6 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.walking_animation[0].get_rect(center=(800, 450))
         self.image = self.walking_animation[0]
         self.animation_count = 0
-        self.walking_right = False
-        self.walking_left = False
-        self.facing_right = True
-        self.speed = 5
 
     def handle_weapon(self):
         mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -102,19 +161,19 @@ class Player(pygame.sprite.Sprite):
 
     def player_input(self):
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_UP]:
+        if keys[pygame.K_UP] or keys[pygame.K_w]:
             if self.rect.top > 0:
                 self.rect.top -= self.speed
-        if keys[pygame.K_DOWN]:
+        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             if self.rect.bottom < screen.get_height():
                 self.rect.bottom += self.speed
-        if keys[pygame.K_RIGHT]:
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             if self.rect.right < screen.get_width():
                 self.walking_right = True
                 self.walking_left = False
                 self.facing_right = True
                 self.rect.right += self.speed
-        if keys[pygame.K_LEFT]:
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             if self.rect.left > 0:
                 self.walking_right = False
                 self.walking_left = True
@@ -130,6 +189,7 @@ class Player(pygame.sprite.Sprite):
 class Enemy(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
+        self.movement_speed = 1
         self.walking_animation = [pygame.image.load("graphics/enemy_animation_0.png"),
                                   pygame.image.load("graphics/enemy_animation_1.png"),
                                   pygame.image.load("graphics/enemy_animation_2.png"),
@@ -142,7 +202,6 @@ class Enemy(pygame.sprite.Sprite):
         else:
             self.rect = self.image.get_rect(
                 center=(randint(0, screen.get_width()), random.choice([-50, screen.get_height() + 50])))
-        self.movement_speed = 2
 
     def move_toward_player(self):
         if self.animation_count + 1 < 16.0:
@@ -150,24 +209,22 @@ class Enemy(pygame.sprite.Sprite):
         else:
             self.animation_count = 0
         self.image = self.walking_animation[self.animation_count // 4]
-        # overcomplicated
-        # dx, dy = player.sprite.rect.centerx - self.rect.centerx, player.sprite.rect.centery - self.rect.centery
-        # dist = math.hypot(dx, dy)
-        # if dist:
-        #    dx, dy = dx / dist, dy / dist
-        #    self.rect.x += dx * self.movement_speed
-        #    self.rect.y += dy * self.movement_speed
-        if player.sprite.rect.centerx - self.rect.centerx != 0:
+    #    dx, dy = player.sprite.rect.centerx - self.rect.centerx, player.sprite.rect.centery - self.rect.centery
+    #    dist = math.hypot(dx, dy)
+    #    if dist:
+    #        dx, dy = dx / dist, dy / dist
+    #        self.rect.x += dx * self.movement_speed
+    #        self.rect.y += dy * self.movement_speed
+        if player.sprite.rect.centerx != self.rect.centerx:
             if player.sprite.rect.centerx > self.rect.centerx:
                 self.rect.centerx += self.movement_speed
             if player.sprite.rect.centerx < self.rect.centerx:
                 self.rect.centerx -= self.movement_speed
-        if player.sprite.rect.centery - self.rect.centery != 0:
+        if player.sprite.rect.centery != self.rect.centery:
             if player.sprite.rect.centery > self.rect.centery:
                 self.rect.centery += self.movement_speed
             if player.sprite.rect.centery < self.rect.centery:
                 self.rect.centery -= self.movement_speed
-
 
     def prevent_overlap(self):
         for enemy in enemies:
@@ -197,16 +254,30 @@ class Enemy(pygame.sprite.Sprite):
         self.suicide()
 
 
-game_active = False
+def test():
+    print("test")
+
+
+pygame.init()
+screen = pygame.display.set_mode((1600, 900))
+pygame.display.set_caption('Dzikie fotele w twojej okolicy')
+clock = pygame.time.Clock()
+button_font = pygame.font.Font(None, 40)
+
+start_game_button = Button(800, 600, 200, 100, "Start", start_game)
+
+customButton = Button(30, 30, 400, 100, 'TestButton', test)
 
 player = pygame.sprite.GroupSingle()
 enemies = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 
-# Enemy spawn timer
 spawn_timer = pygame.USEREVENT + 1
 pygame.time.set_timer(spawn_timer, 150)
 
+game_active = False
+game_pause = False
+bullet_cooldown_tracker = 0
 max_enemies = 20
 
 while True:
@@ -215,32 +286,24 @@ while True:
             pygame.quit()
             exit()
         if game_active:
-            if event.type == spawn_timer:
-                # spawn enemy
-                if len(enemies) < max_enemies:
+            if game_pause:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    game_pause = False
+            else:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    game_pause = True
+                if pygame.mouse.get_pressed()[0] and bullet_cooldown_tracker >= player.sprite.bullet_cooldown:
+                    bullets.add(PlayerBullet())
+                    bullet_cooldown_tracker = 0
+                if event.type == spawn_timer and len(enemies) < max_enemies:
                     enemies.add(Enemy())
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                bullets.add(PlayerBullet())
-        else:
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                # game start
-                player.add(Player())
-                game_active = True
-
     if game_active:
-        # game
-        screen.fill('darkgrey')
-        player.draw(screen)
-        player.update()
-        enemies.draw(screen)
-        enemies.update()
-        bullets.draw(screen)
-        bullets.update()
-        game_active = enemy_hit()
+        if game_pause:
+            pause_menu()
+        else:
+            game_update()
     else:
-        # menu
-        screen.fill('lightgrey')
-        screen.blit(game_message, game_message_rect)
+        main_menu()
 
     pygame.display.update()
     clock.tick(60)
