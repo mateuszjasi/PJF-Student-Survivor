@@ -11,10 +11,21 @@ def main_menu():
 
 
 def pause_menu():
-    customButton.process()
+    unpause_game_button.process()
+    end_game_button.process()
+
+
+def end_game():
+    global game_active, game_pause
+    enemies.empty()
+    bullets.empty()
+    player.remove()
+    game_active = False
+    game_pause = False
 
 
 def game_update():
+    global game_active
     screen.fill('darkgrey')
     player.draw(screen)
     player.update()
@@ -22,9 +33,6 @@ def game_update():
     enemies.update()
     bullets.draw(screen)
     bullets.update()
-    global bullet_cooldown_tracker
-    bullet_cooldown_tracker += 1
-    # game_active = enemy_hit()
 
 
 def start_game():
@@ -33,13 +41,14 @@ def start_game():
     player.add(Player())
 
 
-def enemy_hit():
-    if pygame.sprite.spritecollide(player.sprite, enemies, False):
-        enemies.empty()
-        bullets.empty()
-        player.remove()
-        return False
-    return True
+def pause_game():
+    global game_pause
+    game_pause = True
+
+
+def unpause_game():
+    global game_pause
+    game_pause = False
 
 
 class Button:
@@ -121,7 +130,12 @@ class Player(pygame.sprite.Sprite):
         self.walking_left = False
         self.facing_right = True
         self.speed = 3
+        self.health = 3
+        self.shoot_cooldown = 10
+        self.damage_cooldown = 50
         self.bullet_cooldown = 10
+        self.bullet_cooldown_tracker = self.bullet_cooldown
+        self.damage_cooldown_tracker = self.damage_cooldown
         self.walking_animation = [pygame.image.load("graphics/player_walk_0.png"),
                                   pygame.image.load("graphics/player_walk_1.png"),
                                   pygame.image.load("graphics/player_walk_2.png"),
@@ -144,7 +158,7 @@ class Player(pygame.sprite.Sprite):
                                          self.rect.centery + 5 - int(player_weapon_copy.get_height() / 2)))
 
     def walking(self):
-        if self.animation_count < 15.0:
+        if self.animation_count < 15:
             self.animation_count += 1
         else:
             self.animation_count = 0
@@ -179,11 +193,35 @@ class Player(pygame.sprite.Sprite):
                 self.walking_left = True
                 self.facing_right = False
                 self.rect.left -= self.speed
+        if pygame.mouse.get_pressed()[0] and not self.bullet_cooldown_tracker:
+            self.shoot()
+
+    def shoot(self):
+        bullets.add(PlayerBullet())
+        self.bullet_cooldown_tracker = self.shoot_cooldown
+
+    def got_hit(self):
+        self.damage_cooldown_tracker = self.damage_cooldown
+        self.health -= 1
+
+    def check_hit(self):
+        if pygame.sprite.spritecollide(player.sprite, enemies, False) and not self.damage_cooldown_tracker:
+            self.got_hit()
+        if self.health <= 0:
+            end_game()
+
+    def update_trackers(self):
+        if self.bullet_cooldown_tracker:
+            self.bullet_cooldown_tracker -= 1
+        if self.damage_cooldown_tracker:
+            self.damage_cooldown_tracker -= 1
 
     def update(self):
+        self.update_trackers()
         self.player_input()
         self.walking()
         self.handle_weapon()
+        self.check_hit()
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -209,12 +247,12 @@ class Enemy(pygame.sprite.Sprite):
         else:
             self.animation_count = 0
         self.image = self.walking_animation[self.animation_count // 4]
-    #    dx, dy = player.sprite.rect.centerx - self.rect.centerx, player.sprite.rect.centery - self.rect.centery
-    #    dist = math.hypot(dx, dy)
-    #    if dist:
-    #        dx, dy = dx / dist, dy / dist
-    #        self.rect.x += dx * self.movement_speed
-    #        self.rect.y += dy * self.movement_speed
+        #    dx, dy = player.sprite.rect.centerx - self.rect.centerx, player.sprite.rect.centery - self.rect.centery
+        #    dist = math.hypot(dx, dy)
+        #    if dist:
+        #        dx, dy = dx / dist, dy / dist
+        #        self.rect.x += dx * self.movement_speed
+        #        self.rect.y += dy * self.movement_speed
         if player.sprite.rect.centerx != self.rect.centerx:
             if player.sprite.rect.centerx > self.rect.centerx:
                 self.rect.centerx += self.movement_speed
@@ -254,10 +292,6 @@ class Enemy(pygame.sprite.Sprite):
         self.suicide()
 
 
-def test():
-    print("test")
-
-
 pygame.init()
 screen = pygame.display.set_mode((1600, 900))
 pygame.display.set_caption('Dzikie fotele w twojej okolicy')
@@ -265,8 +299,8 @@ clock = pygame.time.Clock()
 button_font = pygame.font.Font(None, 40)
 
 start_game_button = Button(800, 600, 200, 100, "Start", start_game)
-
-customButton = Button(30, 30, 400, 100, 'TestButton', test)
+unpause_game_button = Button(800, 400, 200, 50, "Resume", unpause_game)
+end_game_button = Button(800, 500, 200, 50, "End", end_game)
 
 player = pygame.sprite.GroupSingle()
 enemies = pygame.sprite.Group()
@@ -277,7 +311,6 @@ pygame.time.set_timer(spawn_timer, 150)
 
 game_active = False
 game_pause = False
-bullet_cooldown_tracker = 0
 max_enemies = 20
 
 while True:
@@ -288,13 +321,10 @@ while True:
         if game_active:
             if game_pause:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    game_pause = False
+                    unpause_game()
             else:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    game_pause = True
-                if pygame.mouse.get_pressed()[0] and bullet_cooldown_tracker >= player.sprite.bullet_cooldown:
-                    bullets.add(PlayerBullet())
-                    bullet_cooldown_tracker = 0
+                    pause_game()
                 if event.type == spawn_timer and len(enemies) < max_enemies:
                     enemies.add(Enemy())
     if game_active:
