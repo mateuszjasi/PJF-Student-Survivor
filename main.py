@@ -25,14 +25,13 @@ def end_game():
 
 
 def game_update():
-    global game_active
     screen.fill('darkgrey')
-    player.draw(screen)
-    player.update()
     enemies.draw(screen)
     enemies.update()
     bullets.draw(screen)
     bullets.update()
+    player.draw(screen)
+    player.update()
 
 
 def start_game():
@@ -130,11 +129,11 @@ class Player(pygame.sprite.Sprite):
         self.walking_left = False
         self.facing_right = True
         self.speed = 3
-        self.health = 3
+        self.max_health = 3
+        self.health = self.max_health
         self.shoot_cooldown = 10
-        self.damage_cooldown = 50
-        self.bullet_cooldown = 10
-        self.bullet_cooldown_tracker = self.bullet_cooldown
+        self.damage_cooldown = 30
+        self.shoot_cooldown_tracker = self.shoot_cooldown
         self.damage_cooldown_tracker = self.damage_cooldown
         self.walking_animation = [pygame.image.load("graphics/player_walk_0.png"),
                                   pygame.image.load("graphics/player_walk_1.png"),
@@ -144,6 +143,16 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.walking_animation[0].get_rect(center=(800, 450))
         self.image = self.walking_animation[0]
         self.animation_count = 0
+
+    def health_bar(self):
+        width = 200
+        height = 40
+        pygame.draw.rect(screen, (0, 0, 0), (10, 10, width + 10, height + 10), 5)
+        health_bar = pygame.draw.rect(screen, (128, 128, 128), (15, 15, width, height))
+        pygame.draw.rect(screen, (255, 0, 0), (15, 15, width * self.health / self.max_health, height))
+        health_text = progress_bar_font.render(str(self.health) + " / " + str(self.max_health), False, (0, 0, 0))
+        health_text_rect = health_text.get_rect(center=health_bar.center)
+        screen.blit(health_text, health_text_rect)
 
     def handle_weapon(self):
         mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -193,26 +202,23 @@ class Player(pygame.sprite.Sprite):
                 self.walking_left = True
                 self.facing_right = False
                 self.rect.left -= self.speed
-        if pygame.mouse.get_pressed()[0] and not self.bullet_cooldown_tracker:
+        if pygame.mouse.get_pressed()[0] and not self.shoot_cooldown_tracker:
             self.shoot()
 
     def shoot(self):
         bullets.add(PlayerBullet())
-        self.bullet_cooldown_tracker = self.shoot_cooldown
-
-    def got_hit(self):
-        self.damage_cooldown_tracker = self.damage_cooldown
-        self.health -= 1
+        self.shoot_cooldown_tracker = self.shoot_cooldown
 
     def check_hit(self):
         if pygame.sprite.spritecollide(player.sprite, enemies, False) and not self.damage_cooldown_tracker:
-            self.got_hit()
+            self.damage_cooldown_tracker = self.damage_cooldown
+            self.health -= 1
         if self.health <= 0:
             end_game()
 
     def update_trackers(self):
-        if self.bullet_cooldown_tracker:
-            self.bullet_cooldown_tracker -= 1
+        if self.shoot_cooldown_tracker:
+            self.shoot_cooldown_tracker -= 1
         if self.damage_cooldown_tracker:
             self.damage_cooldown_tracker -= 1
 
@@ -222,12 +228,13 @@ class Player(pygame.sprite.Sprite):
         self.walking()
         self.handle_weapon()
         self.check_hit()
+        self.health_bar()
 
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.movement_speed = 1
+        self.speed = 1
         self.walking_animation = [pygame.image.load("graphics/enemy_animation_0.png"),
                                   pygame.image.load("graphics/enemy_animation_1.png"),
                                   pygame.image.load("graphics/enemy_animation_2.png"),
@@ -255,14 +262,14 @@ class Enemy(pygame.sprite.Sprite):
         #        self.rect.y += dy * self.movement_speed
         if player.sprite.rect.centerx != self.rect.centerx:
             if player.sprite.rect.centerx > self.rect.centerx:
-                self.rect.centerx += self.movement_speed
+                self.rect.centerx += self.speed
             if player.sprite.rect.centerx < self.rect.centerx:
-                self.rect.centerx -= self.movement_speed
+                self.rect.centerx -= self.speed
         if player.sprite.rect.centery != self.rect.centery:
             if player.sprite.rect.centery > self.rect.centery:
-                self.rect.centery += self.movement_speed
+                self.rect.centery += self.speed
             if player.sprite.rect.centery < self.rect.centery:
-                self.rect.centery -= self.movement_speed
+                self.rect.centery -= self.speed
 
     def prevent_overlap(self):
         for enemy in enemies:
@@ -270,14 +277,14 @@ class Enemy(pygame.sprite.Sprite):
                 if self.rect.colliderect(enemy.rect):
                     if enemy.rect.centerx - self.rect.centerx != 0:
                         if enemy.rect.centerx > self.rect.centerx:
-                            self.rect.centerx -= self.movement_speed
+                            self.rect.centerx -= self.speed
                         if enemy.rect.centerx < self.rect.centerx:
-                            self.rect.centerx += self.movement_speed
+                            self.rect.centerx += self.speed
                     if enemy.rect.centery - self.rect.centery != 0:
                         if enemy.rect.centery > self.rect.centery:
-                            self.rect.centery -= self.movement_speed
+                            self.rect.centery -= self.speed
                         if enemy.rect.centery < self.rect.centery:
-                            self.rect.centery += self.movement_speed
+                            self.rect.centery += self.speed
 
     def suicide(self):
         for bullet in bullets:
@@ -297,6 +304,7 @@ screen = pygame.display.set_mode((1600, 900))
 pygame.display.set_caption('Dzikie fotele w twojej okolicy')
 clock = pygame.time.Clock()
 button_font = pygame.font.Font(None, 40)
+progress_bar_font = pygame.font.Font(None, 50)
 
 start_game_button = Button(800, 600, 200, 100, "Start", start_game)
 unpause_game_button = Button(800, 400, 200, 50, "Resume", unpause_game)
