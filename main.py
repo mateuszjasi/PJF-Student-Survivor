@@ -22,13 +22,23 @@ def pause_menu():
 
 
 def end_game():
-    global game_active, game_pause
+    global game_active, game_pause, minutes, seconds
     enemies.empty()
     bullets.empty()
     drops.empty()
     player.remove()
-    game_active = False
-    game_pause = False
+    minutes, seconds = 0, 0
+    game_active, game_pause = False, False
+
+
+def clock_update():
+    global minutes, seconds
+    if seconds >= 60:
+        minutes += 1
+        seconds = 0
+    time_label = progress_bar_font.render("{:02}:{:02}".format(minutes, seconds), True, (0, 0, 0))
+    time_label_rect = time_label.get_rect(center=(screen.get_width() / 2, 50))
+    screen.blit(time_label, time_label_rect)
 
 
 def game_update():
@@ -45,7 +55,7 @@ def game_update():
 def start_game():
     global game_active
     game_active = True
-    player.add(Player())
+    player.add(Player(5, 3, 3, 30, 10, 10, 500, 100))
 
 
 def open_shop():
@@ -128,11 +138,11 @@ class Drop(pygame.sprite.Sprite):
 
 
 class PlayerBullet(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, bullet_damage, bullet_speed, bullet_range):
         super().__init__()
-        self.speed = 10
-        self.damage = 3
-        self.range = 500
+        self.speed = bullet_speed
+        self.damage = bullet_damage
+        self.range = bullet_range
         self.traveled = 0
         mouse_x, mouse_y = pygame.mouse.get_pos()
         self.x = player.sprite.rect.centerx
@@ -168,22 +178,26 @@ class PlayerBullet(pygame.sprite.Sprite):
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, bullet_damage, speed, max_health, damage_cooldown, shoot_cooldown, bullet_speed,
+                 bullet_range, pickup_range):
         super().__init__()
         self.walking_right = False
         self.walking_left = False
         self.facing_right = True
-        self.speed = 3
-        self.max_health = 3
-        self.health = self.max_health
+        self.damage = bullet_damage
+        self.speed = speed
+        self.max_health = max_health
+        self.damage_cooldown = damage_cooldown
+        self.shoot_cooldown = shoot_cooldown
+        self.bullet_speed = bullet_speed
+        self.bullet_range = bullet_range
+        self.pickup_range = pickup_range
         self.level = 1
         self.max_exp = 10
         self.exp = 0
-        self.shoot_cooldown = 10
-        self.damage_cooldown = 30
-        self.pickup_range = 100
+        self.health = self.max_health
         self.shoot_cooldown_tracker = self.shoot_cooldown
-        self.damage_cooldown_tracker = self.damage_cooldown
+        self.damage_cooldown_tracker = 0
         self.walking_animation = [pygame.image.load("graphics/player_walk_0.png"),
                                   pygame.image.load("graphics/player_walk_1.png"),
                                   pygame.image.load("graphics/player_walk_2.png"),
@@ -238,6 +252,9 @@ class Player(pygame.sprite.Sprite):
             self.image = self.walking_animation[0]
         else:
             self.image = pygame.transform.flip(self.walking_animation[0], True, False)
+    #    pomidor
+    #    if self.damage_cooldown_tracker:
+    #        self.image.fill((100, 0, 0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
     def player_input(self):
         keys = pygame.key.get_pressed()
@@ -263,7 +280,7 @@ class Player(pygame.sprite.Sprite):
             self.shoot()
 
     def shoot(self):
-        bullets.add(PlayerBullet())
+        bullets.add(PlayerBullet(self.damage, self.bullet_speed, self.bullet_range))
         self.shoot_cooldown_tracker = self.shoot_cooldown
 
     def check_hit(self):
@@ -305,11 +322,11 @@ class Player(pygame.sprite.Sprite):
 
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, health, speed, value):
         super().__init__()
-        self.speed = 1
-        self.health = 5
-        self.value = 1
+        self.health = health
+        self.speed = speed
+        self.value = value
         self.walking_animation = [pygame.image.load("graphics/enemy_animation_0.png"),
                                   pygame.image.load("graphics/enemy_animation_1.png"),
                                   pygame.image.load("graphics/enemy_animation_2.png"),
@@ -388,12 +405,14 @@ enemies = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 drops = pygame.sprite.Group()
 
-spawn_timer = pygame.USEREVENT + 1
+clock_timer = pygame.USEREVENT + 1
+pygame.time.set_timer(clock_timer, 1000)
+
+spawn_timer = pygame.USEREVENT + 2
 pygame.time.set_timer(spawn_timer, 500)
 
-game_active = False
-game_pause = False
-upgrade_shop = False
+minutes, seconds, frames = 0, 0, 0
+game_active, game_pause, upgrade_shop = False, False, False
 max_enemies = 20
 
 while True:
@@ -408,13 +427,16 @@ while True:
             else:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     pause_game()
+                if event.type == clock_timer:
+                    seconds += 1
                 if event.type == spawn_timer and len(enemies) < max_enemies:
-                    enemies.add(Enemy())
+                    enemies.add(Enemy(5, 1, 1))
     if game_active:
         if game_pause:
             pause_menu()
         else:
             game_update()
+            clock_update()
     elif upgrade_shop:
         shop()
     else:
