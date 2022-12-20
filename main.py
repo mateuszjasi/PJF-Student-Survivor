@@ -8,6 +8,12 @@ from random import randint
 def main_menu():
     screen.fill('lightgrey')
     start_game_button.process()
+    open_shop_button.process()
+
+
+def shop():
+    screen.fill('lightgrey')
+    close_shop_button.process()
 
 
 def pause_menu():
@@ -19,6 +25,7 @@ def end_game():
     global game_active, game_pause
     enemies.empty()
     bullets.empty()
+    drops.empty()
     player.remove()
     game_active = False
     game_pause = False
@@ -26,6 +33,7 @@ def end_game():
 
 def game_update():
     screen.fill('darkgrey')
+    drops.draw(screen)
     enemies.draw(screen)
     enemies.update()
     bullets.draw(screen)
@@ -38,6 +46,16 @@ def start_game():
     global game_active
     game_active = True
     player.add(Player())
+
+
+def open_shop():
+    global upgrade_shop
+    upgrade_shop = True
+
+
+def close_shop():
+    global upgrade_shop
+    upgrade_shop = False
 
 
 def pause_game():
@@ -89,16 +107,40 @@ class Button:
         screen.blit(self.buttonSurface, self.buttonRect)
 
 
+class Drop(pygame.sprite.Sprite):
+    def __init__(self, x, y, value):
+        super().__init__()
+        self.value = value
+        self.image = pygame.image.load("graphics/drop.png").convert_alpha()
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+
+    def move_to_player(self):
+        dx, dy = player.sprite.rect.centerx - self.rect.centerx, player.sprite.rect.centery - self.rect.centery
+        dist = math.hypot(dx, dy)
+        if dist:
+            dx, dy = dx / dist, dy / dist
+            self.rect.x += dx * 5
+            self.rect.y += dy * 5
+
+    def update(self):
+        self.move_to_player()
+
+
 class PlayerBullet(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
         self.speed = 10
+        self.damage = 3
+        self.range = 500
+        self.traveled = 0
         mouse_x, mouse_y = pygame.mouse.get_pos()
         self.x = player.sprite.rect.centerx
         self.y = player.sprite.rect.centery
         self.angle = math.atan2(self.y - mouse_y, self.x - mouse_x)
         self.x_vel = math.cos(self.angle) * self.speed
         self.y_vel = math.sin(self.angle) * self.speed
+        self.distance = math.hypot(self.x_vel, self.y_vel)
         self.image = pygame.Surface([10, 10])
         self.image.fill((255, 255, 255))
         self.image.set_colorkey((255, 255, 255))
@@ -110,6 +152,9 @@ class PlayerBullet(pygame.sprite.Sprite):
     def move(self):
         self.rect.x -= int(self.x_vel)
         self.rect.y -= int(self.y_vel)
+        self.traveled += self.distance
+        if self.traveled >= self.range:
+            self.kill()
 
     def check_outside(self):
         if self.rect.left > screen.get_width() or self.rect.right < 0:
@@ -131,8 +176,12 @@ class Player(pygame.sprite.Sprite):
         self.speed = 3
         self.max_health = 3
         self.health = self.max_health
+        self.level = 1
+        self.max_exp = 10
+        self.exp = 0
         self.shoot_cooldown = 10
         self.damage_cooldown = 30
+        self.pickup_range = 100
         self.shoot_cooldown_tracker = self.shoot_cooldown
         self.damage_cooldown_tracker = self.damage_cooldown
         self.walking_animation = [pygame.image.load("graphics/player_walk_0.png"),
@@ -140,19 +189,27 @@ class Player(pygame.sprite.Sprite):
                                   pygame.image.load("graphics/player_walk_2.png"),
                                   pygame.image.load("graphics/player_walk_3.png")]
         self.player_weapon = pygame.image.load("graphics/weapon.png").convert_alpha()
-        self.rect = self.walking_animation[0].get_rect(center=(800, 450))
+        self.rect = self.walking_animation[0].get_rect(center=(screen.get_width() / 2, screen.get_height() / 2))
         self.image = self.walking_animation[0]
         self.animation_count = 0
 
-    def health_bar(self):
+    def show_stats(self):
         width = 200
         height = 40
+
         pygame.draw.rect(screen, (0, 0, 0), (10, 10, width + 10, height + 10), 5)
         health_bar = pygame.draw.rect(screen, (128, 128, 128), (15, 15, width, height))
         pygame.draw.rect(screen, (255, 0, 0), (15, 15, width * self.health / self.max_health, height))
         health_text = progress_bar_font.render(str(self.health) + " / " + str(self.max_health), False, (0, 0, 0))
         health_text_rect = health_text.get_rect(center=health_bar.center)
         screen.blit(health_text, health_text_rect)
+
+        pygame.draw.rect(screen, (0, 0, 0), (10, height + 25, width + 10, height + 10), 5)
+        exp_bar = pygame.draw.rect(screen, (128, 128, 128), (15, height + 30, width, height))
+        pygame.draw.rect(screen, (0, 255, 0), (15, height + 30, width * self.exp / self.max_exp, height))
+        exp_text = progress_bar_font.render("Lv: " + str(self.level), False, (0, 0, 0))
+        exp_text_rect = exp_text.get_rect(center=exp_bar.center)
+        screen.blit(exp_text, exp_text_rect)
 
     def handle_weapon(self):
         mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -167,7 +224,7 @@ class Player(pygame.sprite.Sprite):
                                          self.rect.centery + 5 - int(player_weapon_copy.get_height() / 2)))
 
     def walking(self):
-        if self.animation_count < 15:
+        if self.animation_count + 1 < 16:
             self.animation_count += 1
         else:
             self.animation_count = 0
@@ -216,6 +273,20 @@ class Player(pygame.sprite.Sprite):
         if self.health <= 0:
             end_game()
 
+    def check_drop(self):
+        for drop in drops:
+            if math.hypot(self.rect.x - drop.rect.x, self.rect.y - drop.rect.y) < self.pickup_range:
+                drop.update()
+            if self.rect.colliderect(drop.rect):
+                self.exp += drop.value
+                drop.kill()
+
+    def check_level_up(self):
+        if self.exp >= self.max_exp:
+            self.exp = 0
+            self.level += 1
+            self.max_exp = self.level * 10
+
     def update_trackers(self):
         if self.shoot_cooldown_tracker:
             self.shoot_cooldown_tracker -= 1
@@ -228,13 +299,17 @@ class Player(pygame.sprite.Sprite):
         self.walking()
         self.handle_weapon()
         self.check_hit()
-        self.health_bar()
+        self.check_drop()
+        self.check_level_up()
+        self.show_stats()
 
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
         self.speed = 1
+        self.health = 5
+        self.value = 1
         self.walking_animation = [pygame.image.load("graphics/enemy_animation_0.png"),
                                   pygame.image.load("graphics/enemy_animation_1.png"),
                                   pygame.image.load("graphics/enemy_animation_2.png"),
@@ -249,17 +324,11 @@ class Enemy(pygame.sprite.Sprite):
                 center=(randint(0, screen.get_width()), random.choice([-50, screen.get_height() + 50])))
 
     def move_toward_player(self):
-        if self.animation_count + 1 < 16.0:
+        if self.animation_count + 1 < 16:
             self.animation_count += 1
         else:
             self.animation_count = 0
         self.image = self.walking_animation[self.animation_count // 4]
-        #    dx, dy = player.sprite.rect.centerx - self.rect.centerx, player.sprite.rect.centery - self.rect.centery
-        #    dist = math.hypot(dx, dy)
-        #    if dist:
-        #        dx, dy = dx / dist, dy / dist
-        #        self.rect.x += dx * self.movement_speed
-        #        self.rect.y += dy * self.movement_speed
         if player.sprite.rect.centerx != self.rect.centerx:
             if player.sprite.rect.centerx > self.rect.centerx:
                 self.rect.centerx += self.speed
@@ -286,39 +355,45 @@ class Enemy(pygame.sprite.Sprite):
                         if enemy.rect.centery < self.rect.centery:
                             self.rect.centery += self.speed
 
-    def suicide(self):
+    def check_hit(self):
         for bullet in bullets:
             if self.rect.colliderect(bullet.rect):
+                self.health -= bullet.damage
                 bullet.kill()
-                self.kill()
-                break
+        if self.health <= 0:
+            drops.add(Drop(self.rect.centerx, self.rect.centery, self.value))
+            self.kill()
 
     def update(self):
         self.move_toward_player()
         self.prevent_overlap()
-        self.suicide()
+        self.check_hit()
 
 
 pygame.init()
-screen = pygame.display.set_mode((1600, 900))
+screen = pygame.display.set_mode((1920, 1080))
 pygame.display.set_caption('Dzikie fotele w twojej okolicy')
 clock = pygame.time.Clock()
 button_font = pygame.font.Font(None, 40)
 progress_bar_font = pygame.font.Font(None, 50)
 
-start_game_button = Button(800, 600, 200, 100, "Start", start_game)
-unpause_game_button = Button(800, 400, 200, 50, "Resume", unpause_game)
-end_game_button = Button(800, 500, 200, 50, "End", end_game)
+start_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 200, 200, 100, "Start", start_game)
+open_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 200, 80, "Upgrades", open_shop)
+close_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 400, 200, 100, "Return", close_shop)
+unpause_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 - 50, 200, 50, "Resume", unpause_game)
+end_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 200, 50, "End", end_game)
 
 player = pygame.sprite.GroupSingle()
 enemies = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
+drops = pygame.sprite.Group()
 
 spawn_timer = pygame.USEREVENT + 1
-pygame.time.set_timer(spawn_timer, 150)
+pygame.time.set_timer(spawn_timer, 500)
 
 game_active = False
 game_pause = False
+upgrade_shop = False
 max_enemies = 20
 
 while True:
@@ -340,6 +415,8 @@ while True:
             pause_menu()
         else:
             game_update()
+    elif upgrade_shop:
+        shop()
     else:
         main_menu()
 
