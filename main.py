@@ -21,14 +21,18 @@ def pause_menu():
     end_game_button.process()
 
 
+def death_screen_menu():
+    death_screen_button.process()
+
+
 def end_game():
-    global game_active, game_pause, minutes, seconds
+    global game_active, game_pause, death_screen, minutes, seconds
     enemies.empty()
     bullets.empty()
     drops.empty()
     player.remove()
     minutes, seconds = 0, 0
-    game_active, game_pause = False, False
+    game_active, game_pause, death_screen = False, False, False
 
 
 def clock_update():
@@ -76,6 +80,12 @@ def pause_game():
 def unpause_game():
     global game_pause
     game_pause = False
+
+
+def player_died():
+    global death_screen
+    death_screen = True
+    screen.fill((50, 50, 50, 0), special_flags=pygame.BLEND_RGBA_MIN)
 
 
 class Button:
@@ -196,7 +206,7 @@ class Player(pygame.sprite.Sprite):
         self.max_exp = 10
         self.exp = 0
         self.health = self.max_health
-        self.shoot_cooldown_tracker = self.shoot_cooldown
+        self.shoot_cooldown_tracker = 0
         self.damage_cooldown_tracker = 0
         self.walking_animation = [pygame.image.load("graphics/player_walk_0.png"),
                                   pygame.image.load("graphics/player_walk_1.png"),
@@ -243,18 +253,17 @@ class Player(pygame.sprite.Sprite):
         else:
             self.animation_count = 0
         if self.walking_right:
-            self.image = self.walking_animation[self.animation_count // 4]
+            self.image = self.walking_animation[self.animation_count // 4].copy()
             self.walking_right = False
         elif self.walking_left:
-            self.image = pygame.transform.flip(self.walking_animation[self.animation_count // 4], True, False)
+            self.image = pygame.transform.flip(self.walking_animation[self.animation_count // 4].copy(), True, False)
             self.walking_left = False
         elif self.facing_right:
-            self.image = self.walking_animation[0]
+            self.image = self.walking_animation[0].copy()
         else:
-            self.image = pygame.transform.flip(self.walking_animation[0], True, False)
-    #    pomidor
-    #    if self.damage_cooldown_tracker:
-    #        self.image.fill((100, 0, 0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+            self.image = pygame.transform.flip(self.walking_animation[0].copy(), True, False)
+        if self.damage_cooldown_tracker:
+            self.image.fill((100, 0, 0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
     def player_input(self):
         keys = pygame.key.get_pressed()
@@ -288,7 +297,7 @@ class Player(pygame.sprite.Sprite):
             self.damage_cooldown_tracker = self.damage_cooldown
             self.health -= 1
         if self.health <= 0:
-            end_game()
+            player_died()
 
     def check_drop(self):
         for drop in drops:
@@ -399,6 +408,7 @@ open_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 300,
 close_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 400, 200, 100, "Return", close_shop)
 unpause_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 - 50, 200, 50, "Resume", unpause_game)
 end_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 200, 50, "End", end_game)
+death_screen_button = Button(screen.get_width() / 2, screen.get_height() / 2, 200, 50, "Back to menu", end_game)
 
 player = pygame.sprite.GroupSingle()
 enemies = pygame.sprite.Group()
@@ -412,7 +422,7 @@ spawn_timer = pygame.USEREVENT + 2
 pygame.time.set_timer(spawn_timer, 500)
 
 minutes, seconds, frames = 0, 0, 0
-game_active, game_pause, upgrade_shop = False, False, False
+game_active, game_pause, upgrade_shop, death_screen = False, False, False, False
 max_enemies = 20
 
 while True:
@@ -432,7 +442,9 @@ while True:
                 if event.type == spawn_timer and len(enemies) < max_enemies:
                     enemies.add(Enemy(5, 1, 1))
     if game_active:
-        if game_pause:
+        if death_screen:
+            death_screen_menu()
+        elif game_pause:
             pause_menu()
         else:
             game_update()
