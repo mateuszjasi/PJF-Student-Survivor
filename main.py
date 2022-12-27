@@ -139,10 +139,11 @@ class Button:
         self.buttonSurface = pygame.Surface((self.width, self.height))
         self.buttonRect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.buttonRect.center = (self.x, self.y)
-        self.buttonSurf = button_font.render(buttonText, True, (0, 0, 0))
+        self.buttonText = buttonText
         self.alreadyPressed = False
 
     def process(self):
+        button_surf = button_font.render(self.buttonText, True, (0, 0, 0))
         mouse_position = pygame.mouse.get_pos()
         if self.active:
             self.buttonSurface.fill(self.fillColors['normal'])
@@ -160,9 +161,9 @@ class Button:
                     self.alreadyPressed = False
         else:
             self.buttonSurface.fill(self.fillColors['pressed'])
-        self.buttonSurface.blit(self.buttonSurf, [
-            self.buttonRect.width / 2 - self.buttonSurf.get_rect().width / 2,
-            self.buttonRect.height / 2 - self.buttonSurf.get_rect().height / 2
+        self.buttonSurface.blit(button_surf, [
+            self.buttonRect.width / 2 - button_surf.get_rect().width / 2,
+            self.buttonRect.height / 2 - button_surf.get_rect().height / 2
         ])
         screen.blit(self.buttonSurface, self.buttonRect)
         pygame.draw.rect(screen, (0, 0, 0), self.buttonRect, 3)
@@ -182,8 +183,11 @@ class ShopTile:
             'normal': (255, 0, 0),
             'fully_upgraded': (100, 0, 0)
         }
-        self.buy_button = Button(self.tileRect.centerx, self.tileRect.bottom - 35, 75, 60, "Buy", buy_upgrade, [self.upgrade_name],
-                                 True if bought_upgrades[upgrade_name][0] < bought_upgrades[upgrade_name][1] else False)
+        self.buy_button = Button(self.tileRect.centerx, self.tileRect.bottom - 35, 75, 60,
+                                 str((bought_upgrades[self.upgrade_name][0] + 1)
+                                     * bought_upgrades[self.upgrade_name][3]), buy_upgrade, [self.upgrade_name],
+                                 True if bought_upgrades[self.upgrade_name][0]
+                                         < bought_upgrades[self.upgrade_name][1] else False)
 
     def process(self):
         if bought_upgrades[self.upgrade_name][0] < bought_upgrades[self.upgrade_name][1]:
@@ -212,8 +216,11 @@ class ShopTile:
         self.buy_button.process()
         if bought_upgrades[self.upgrade_name][0] < bought_upgrades[self.upgrade_name][1]:
             self.buy_button.active = True
+            self.buy_button.buttonText = str((bought_upgrades[self.upgrade_name][0] + 1)
+                                             * bought_upgrades[self.upgrade_name][3])
         else:
             self.buy_button.active = False
+            self.buy_button.buttonText = '---'
 
 
 class Drop(pygame.sprite.Sprite):
