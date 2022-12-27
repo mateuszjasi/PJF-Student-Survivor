@@ -13,7 +13,19 @@ def main_menu():
 
 def shop():
     screen.fill('lightgrey')
+    for tile in range(0, len(shop_tiles)):
+        shop_tiles[tile].process()
     close_shop_button.process()
+    money_text = in_game_money_font.render("Money: " + str(global_money), True, (0, 0, 0))
+    money_rect = money_text.get_rect(bottomleft=(10, screen.get_height() - 10))
+    screen.blit(money_text, money_rect)
+
+
+def buy_upgrade(arguments):
+    global bought_upgrades, global_money
+    if global_money >= bought_upgrades[arguments[0]][3] * (bought_upgrades[arguments[0]][0] + 1):
+        bought_upgrades[arguments[0]][0] += 1
+        global_money -= bought_upgrades[arguments[0]][3] * (bought_upgrades[arguments[0]][0] + 1)
 
 
 def pause_menu():
@@ -26,10 +38,11 @@ def death_screen_menu():
 
 
 def end_game():
-    global game_active, game_pause, death_screen, minutes, seconds
+    global global_money, game_active, game_pause, death_screen, minutes, seconds
     enemies.empty()
     bullets.empty()
     drops.empty()
+    global_money += player.sprite.money
     player.remove()
     minutes, seconds = 0, 0
     game_active, game_pause, death_screen = False, False, False
@@ -59,7 +72,14 @@ def game_update():
 def start_game():
     global game_active
     game_active = True
-    player.add(Player(5, 3, 3, 30, 10, 10, 500, 100))
+    player.add(Player(
+        5 + 5 * 0.05 * bought_upgrades["Bullet damage"][0],
+        10 - 10 * 0.05 * bought_upgrades["Shot speed"][0],
+        10 + 10 * 0.05 * bought_upgrades["Bullet speed"][0],
+        500 + 500 * 0.05 * bought_upgrades["Bullet range"][0],
+        4 + bought_upgrades["Health"][0],
+        2 + 2 * 0.1 * bought_upgrades["Movement speed"][0],
+        100 + 100 * 0.1 * bought_upgrades["Pickup range"][0]))
 
 
 def open_shop():
@@ -82,19 +102,34 @@ def unpause_game():
     game_pause = False
 
 
-def player_died():
-    global death_screen
+def player_died(player_money):
+    global death_screen, global_money
     death_screen = True
+    global_money += player_money
     screen.fill((50, 50, 50, 0), special_flags=pygame.BLEND_RGBA_MIN)
 
 
+def generate_shop_tiles():
+    global shop_tiles
+    height, width = 250, 300
+    x, y = 10, 20
+    for i in bought_upgrades:
+        shop_tiles.append(ShopTile(x, y, width, height, i))
+        x += width + 10
+        if x + width + 10 >= screen.get_width():
+            x = 10
+            y += height + 20
+
+
 class Button:
-    def __init__(self, x, y, width, height, buttonText='Button', onclickFunction=None):
+    def __init__(self, x, y, width, height, buttonText='Button', onclickFunction=None, arguments=None, active=True):
         self.x = x
         self.y = y
         self.width = width
         self.height = height
         self.onclickFunction = onclickFunction
+        self.arguments = arguments
+        self.active = active
         self.alreadyPressed = False
         self.fillColors = {
             'normal': (255, 0, 0),
@@ -109,29 +144,87 @@ class Button:
 
     def process(self):
         mouse_position = pygame.mouse.get_pos()
-        self.buttonSurface.fill(self.fillColors['normal'])
-        if self.buttonRect.collidepoint(mouse_position):
-            self.buttonSurface.fill(self.fillColors['hover'])
-            if pygame.mouse.get_pressed()[0]:
-                self.buttonSurface.fill(self.fillColors['pressed'])
-                if not self.alreadyPressed:
-                    self.onclickFunction()
-                    self.alreadyPressed = True
-            else:
-                self.alreadyPressed = False
-
+        if self.active:
+            self.buttonSurface.fill(self.fillColors['normal'])
+            if self.buttonRect.collidepoint(mouse_position):
+                self.buttonSurface.fill(self.fillColors['hover'])
+                if pygame.mouse.get_pressed()[0]:
+                    self.buttonSurface.fill(self.fillColors['pressed'])
+                    if not self.alreadyPressed:
+                        if self.arguments:
+                            self.onclickFunction(self.arguments)
+                        else:
+                            self.onclickFunction()
+                        self.alreadyPressed = True
+                else:
+                    self.alreadyPressed = False
+        else:
+            self.buttonSurface.fill(self.fillColors['pressed'])
         self.buttonSurface.blit(self.buttonSurf, [
             self.buttonRect.width / 2 - self.buttonSurf.get_rect().width / 2,
             self.buttonRect.height / 2 - self.buttonSurf.get_rect().height / 2
         ])
         screen.blit(self.buttonSurface, self.buttonRect)
+        pygame.draw.rect(screen, (0, 0, 0), self.buttonRect, 3)
+
+
+class ShopTile:
+    def __init__(self, x, y, width, height, upgrade_name="Tile"):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.upgrade_name = upgrade_name
+        self.tileSurface = pygame.Surface((self.width, self.height))
+        self.tileRect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.tileName = shop_tile_name_font.render(upgrade_name, True, (0, 0, 0))
+        self.fillColors = {
+            'normal': (255, 0, 0),
+            'fully_upgraded': (100, 0, 0)
+        }
+        self.buy_button = Button(self.tileRect.centerx, self.tileRect.bottom - 35, 75, 60, "Buy", buy_upgrade, [self.upgrade_name],
+                                 True if bought_upgrades[upgrade_name][0] < bought_upgrades[upgrade_name][1] else False)
+
+    def process(self):
+        if bought_upgrades[self.upgrade_name][0] < bought_upgrades[self.upgrade_name][1]:
+            self.tileSurface.fill(self.fillColors['normal'])
+        else:
+            self.tileSurface.fill(self.fillColors['fully_upgraded'])
+        self.tileSurface.blit(self.tileName, [self.tileRect.width / 2 - self.tileName.get_rect().width / 2, 5])
+        tile_lvl = shop_tile_name_font.render("Lvl " + str(bought_upgrades[self.upgrade_name][0]) + " / " +
+                                                  str(bought_upgrades[self.upgrade_name][1]), True, (0, 0, 0))
+        self.tileSurface.blit(tile_lvl, [self.tileRect.width / 2 - tile_lvl.get_rect().width / 2, 5 + self.tileName.get_height()])
+        word_x, word_y = 5, 60
+        word_height = 0
+        for lines in [word.split(' ') for word in bought_upgrades[self.upgrade_name][2].splitlines()]:
+            for words in lines:
+                word_surface = shop_tile_text_font.render(words, True, (0, 0, 0))
+                word_width, word_height = word_surface.get_size()
+                if word_x + word_width >= self.width:
+                    word_x = 5
+                    word_y += word_height
+                self.tileSurface.blit(word_surface, (word_x, word_y))
+                word_x += word_width + shop_tile_text_font.size(' ')[0]
+            word_x = 5
+            word_y += word_height
+        screen.blit(self.tileSurface, self.tileRect)
+        pygame.draw.rect(screen, (0, 0, 0), self.tileRect, 3)
+        self.buy_button.process()
+        if bought_upgrades[self.upgrade_name][0] < bought_upgrades[self.upgrade_name][1]:
+            self.buy_button.active = True
+        else:
+            self.buy_button.active = False
 
 
 class Drop(pygame.sprite.Sprite):
-    def __init__(self, x, y, value):
+    def __init__(self, x, y, drop_type, value):
         super().__init__()
         self.value = value
-        self.image = pygame.image.load("graphics/drop.png").convert_alpha()
+        self.type = drop_type
+        if drop_type == 1:
+            self.image = pygame.image.load("graphics/exp.png").convert_alpha()
+        else:
+            self.image = pygame.image.load("graphics/money.png").convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
 
@@ -188,8 +281,7 @@ class PlayerBullet(pygame.sprite.Sprite):
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, bullet_damage, speed, max_health, damage_cooldown, shoot_cooldown, bullet_speed,
-                 bullet_range, pickup_range):
+    def __init__(self, bullet_damage, shoot_cooldown, bullet_speed, bullet_range, max_health, speed, pickup_range):
         super().__init__()
         self.walking_right = False
         self.walking_left = False
@@ -197,7 +289,6 @@ class Player(pygame.sprite.Sprite):
         self.damage = bullet_damage
         self.speed = speed
         self.max_health = max_health
-        self.damage_cooldown = damage_cooldown
         self.shoot_cooldown = shoot_cooldown
         self.bullet_speed = bullet_speed
         self.bullet_range = bullet_range
@@ -205,8 +296,10 @@ class Player(pygame.sprite.Sprite):
         self.level = 1
         self.max_exp = 10
         self.exp = 0
+        self.money = 0
         self.health = self.max_health
-        self.shoot_cooldown_tracker = 0
+        self.shoot_cooldown_tracker = 5
+        self.damage_cooldown = 30
         self.damage_cooldown_tracker = 0
         self.walking_animation = [pygame.image.load("graphics/player_walk_0.png"),
                                   pygame.image.load("graphics/player_walk_1.png"),
@@ -224,16 +317,20 @@ class Player(pygame.sprite.Sprite):
         pygame.draw.rect(screen, (0, 0, 0), (10, 10, width + 10, height + 10), 5)
         health_bar = pygame.draw.rect(screen, (128, 128, 128), (15, 15, width, height))
         pygame.draw.rect(screen, (255, 0, 0), (15, 15, width * self.health / self.max_health, height))
-        health_text = progress_bar_font.render(str(self.health) + " / " + str(self.max_health), False, (0, 0, 0))
+        health_text = progress_bar_font.render(str(self.health) + " / " + str(self.max_health), True, (0, 0, 0))
         health_text_rect = health_text.get_rect(center=health_bar.center)
         screen.blit(health_text, health_text_rect)
 
         pygame.draw.rect(screen, (0, 0, 0), (10, height + 25, width + 10, height + 10), 5)
         exp_bar = pygame.draw.rect(screen, (128, 128, 128), (15, height + 30, width, height))
         pygame.draw.rect(screen, (0, 255, 0), (15, height + 30, width * self.exp / self.max_exp, height))
-        exp_text = progress_bar_font.render("Lv: " + str(self.level), False, (0, 0, 0))
+        exp_text = progress_bar_font.render("Lv: " + str(self.level), True, (0, 0, 0))
         exp_text_rect = exp_text.get_rect(center=exp_bar.center)
         screen.blit(exp_text, exp_text_rect)
+
+        money_text = in_game_money_font.render("Money: " + str(self.money), True, (0, 0, 0))
+        money_rect = money_text.get_rect(topleft=(10, exp_bar.bottom + 20))
+        screen.blit(money_text, money_rect)
 
     def handle_weapon(self):
         mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -297,14 +394,17 @@ class Player(pygame.sprite.Sprite):
             self.damage_cooldown_tracker = self.damage_cooldown
             self.health -= 1
         if self.health <= 0:
-            player_died()
+            player_died(self.money)
 
     def check_drop(self):
         for drop in drops:
             if math.hypot(self.rect.x - drop.rect.x, self.rect.y - drop.rect.y) < self.pickup_range:
                 drop.update()
             if self.rect.colliderect(drop.rect):
-                self.exp += drop.value
+                if drop.type == 1:
+                    self.exp += drop.value
+                else:
+                    self.money += drop.value
                 drop.kill()
 
     def check_level_up(self):
@@ -387,7 +487,9 @@ class Enemy(pygame.sprite.Sprite):
                 self.health -= bullet.damage
                 bullet.kill()
         if self.health <= 0:
-            drops.add(Drop(self.rect.centerx, self.rect.centery, self.value))
+            drops.add(Drop(self.rect.centerx, self.rect.centery, 1, self.value))
+            if randint(0, 99) < 5:
+                drops.add(Drop(self.rect.centerx, self.rect.centery, 2, randint(1, 10)))
             self.kill()
 
     def update(self):
@@ -398,10 +500,27 @@ class Enemy(pygame.sprite.Sprite):
 
 pygame.init()
 screen = pygame.display.set_mode((1920, 1080))
-pygame.display.set_caption('Dzikie fotele w twojej okolicy')
+pygame.display.set_caption('Wild students in your area')
 clock = pygame.time.Clock()
 button_font = pygame.font.Font(None, 40)
+shop_tile_name_font = pygame.font.Font(None, 34)
+shop_tile_text_font = pygame.font.Font(None, 21)
 progress_bar_font = pygame.font.Font(None, 50)
+in_game_money_font = pygame.font.Font(None, 40)
+bought_upgrades = {
+    "Bullet damage": [0, 10, "Increases bullet damage by 5% per level", 250],
+    "Shot speed": [0, 6, "Increases shot speed by 5% per level", 500],
+    "Bullet speed": [0, 4, "Increases bullet speed by 5% per level", 100],
+    "Bullet range": [0, 6, "Increases bullet range by 5% per level", 250],
+    "Health": [0, 5, "Increases health by 1 per level", 750],
+    "Movement speed": [0, 10, "Increases movement speed by 5% per level", 300],
+    "Pickup range": [0, 5, "Increases pickup range by 10% per level", 150]
+}
+
+player = pygame.sprite.GroupSingle()
+enemies = pygame.sprite.Group()
+bullets = pygame.sprite.Group()
+drops = pygame.sprite.Group()
 
 start_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 200, 200, 100, "Start", start_game)
 open_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 200, 80, "Upgrades", open_shop)
@@ -410,10 +529,10 @@ unpause_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 - 5
 end_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 200, 50, "End", end_game)
 death_screen_button = Button(screen.get_width() / 2, screen.get_height() / 2, 200, 50, "Back to menu", end_game)
 
-player = pygame.sprite.GroupSingle()
-enemies = pygame.sprite.Group()
-bullets = pygame.sprite.Group()
-drops = pygame.sprite.Group()
+shop_tiles = []
+generate_shop_tiles()
+
+global_money = 99999
 
 clock_timer = pygame.USEREVENT + 1
 pygame.time.set_timer(clock_timer, 1000)
