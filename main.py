@@ -74,7 +74,7 @@ def start_game():
     game_active = True
     player.add(Player(
         5 + 5 * 0.05 * bought_upgrades["Bullet damage"][0],
-        10 - 10 * 0.05 * bought_upgrades["Shot speed"][0],
+        20 - 20 * 0.1 * bought_upgrades["Shot speed"][0],
         10 + 10 * 0.05 * bought_upgrades["Bullet speed"][0],
         500 + 500 * 0.05 * bought_upgrades["Bullet range"][0],
         4 + bought_upgrades["Health"][0],
@@ -106,7 +106,7 @@ def player_died(player_money):
     global death_screen, global_money
     death_screen = True
     global_money += player_money
-    screen.fill((50, 50, 50, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    screen.fill('darkgrey')
 
 
 def generate_shop_tiles():
@@ -183,7 +183,7 @@ class ShopTile:
             'normal': (255, 0, 0),
             'fully_upgraded': (100, 0, 0)
         }
-        self.buy_button = Button(self.tileRect.centerx, self.tileRect.bottom - 35, 75, 60,
+        self.buy_button = Button(self.tileRect.centerx, self.tileRect.bottom - 35, 150, 60,
                                  str((bought_upgrades[self.upgrade_name][0] + 1)
                                      * bought_upgrades[self.upgrade_name][3]), buy_upgrade, [self.upgrade_name],
                                  True if bought_upgrades[self.upgrade_name][0]
@@ -198,18 +198,18 @@ class ShopTile:
         tile_lvl = shop_tile_name_font.render("Lvl " + str(bought_upgrades[self.upgrade_name][0]) + " / " +
                                                   str(bought_upgrades[self.upgrade_name][1]), True, (0, 0, 0))
         self.tileSurface.blit(tile_lvl, [self.tileRect.width / 2 - tile_lvl.get_rect().width / 2, 5 + self.tileName.get_height()])
-        word_x, word_y = 5, 60
+        word_x, word_y = 10, 60
         word_height = 0
         for lines in [word.split(' ') for word in bought_upgrades[self.upgrade_name][2].splitlines()]:
             for words in lines:
                 word_surface = shop_tile_text_font.render(words, True, (0, 0, 0))
                 word_width, word_height = word_surface.get_size()
                 if word_x + word_width >= self.width:
-                    word_x = 5
+                    word_x = 10
                     word_y += word_height
                 self.tileSurface.blit(word_surface, (word_x, word_y))
                 word_x += word_width + shop_tile_text_font.size(' ')[0]
-            word_x = 5
+            word_x = 10
             word_y += word_height
         screen.blit(self.tileSurface, self.tileRect)
         pygame.draw.rect(screen, (0, 0, 0), self.tileRect, 3)
@@ -250,21 +250,21 @@ class Drop(pygame.sprite.Sprite):
 class PlayerBullet(pygame.sprite.Sprite):
     def __init__(self, bullet_damage, bullet_speed, bullet_range):
         super().__init__()
-        self.speed = bullet_speed
         self.damage = bullet_damage
         self.range = bullet_range
         self.traveled = 0
         mouse_x, mouse_y = pygame.mouse.get_pos()
         self.x = player.sprite.rect.centerx
         self.y = player.sprite.rect.centery
-        self.angle = math.atan2(self.y - mouse_y, self.x - mouse_x)
-        self.x_vel = math.cos(self.angle) * self.speed
-        self.y_vel = math.sin(self.angle) * self.speed
+        angle = math.atan2(self.y - mouse_y, self.x - mouse_x)
+        self.x_vel = math.cos(angle) * bullet_speed
+        self.y_vel = math.sin(angle) * bullet_speed
         self.distance = math.hypot(self.x_vel, self.y_vel)
-        self.image = pygame.Surface([10, 10])
-        self.image.fill((255, 255, 255))
-        self.image.set_colorkey((255, 255, 255))
-        pygame.draw.circle(self.image, (0, 0, 0), (self.image.get_width() / 2, self.image.get_height() / 2), 5)
+        self.image = pygame.transform.rotate(pygame.image.load("graphics/bullet.png").convert_alpha(), -math.degrees(angle % (2 * math.pi)))
+        # self.image = pygame.Surface([10, 10])
+        # self.image.fill((255, 255, 255))
+        # self.image.set_colorkey((255, 255, 255))
+        # pygame.draw.circle(self.image, (0, 0, 0), (self.image.get_width() / 2, self.image.get_height() / 2), 5)
         self.rect = self.image.get_rect()
         self.rect.x = self.x
         self.rect.y = self.y
@@ -290,9 +290,8 @@ class PlayerBullet(pygame.sprite.Sprite):
 class Player(pygame.sprite.Sprite):
     def __init__(self, bullet_damage, shoot_cooldown, bullet_speed, bullet_range, max_health, speed, pickup_range):
         super().__init__()
-        self.walking_right = False
-        self.walking_left = False
-        self.facing_right = True
+        self.walking_direction = "down"
+        self.facing_direction = "down"
         self.damage = bullet_damage
         self.speed = speed
         self.max_health = max_health
@@ -308,13 +307,25 @@ class Player(pygame.sprite.Sprite):
         self.shoot_cooldown_tracker = 5
         self.damage_cooldown = 30
         self.damage_cooldown_tracker = 0
-        self.walking_animation = [pygame.image.load("graphics/player_walk_0.png"),
-                                  pygame.image.load("graphics/player_walk_1.png"),
-                                  pygame.image.load("graphics/player_walk_2.png"),
-                                  pygame.image.load("graphics/player_walk_3.png")]
+        self.walking_animation_down = [pygame.image.load("graphics/player_walk_down_0.png"),
+                                       pygame.image.load("graphics/player_walk_down_1.png"),
+                                       pygame.image.load("graphics/player_walk_down_2.png"),
+                                       pygame.image.load("graphics/player_walk_down_3.png")]
+        self.walking_animation_right = [pygame.image.load("graphics/player_walk_right_0.png"),
+                                        pygame.image.load("graphics/player_walk_right_1.png"),
+                                        pygame.image.load("graphics/player_walk_right_2.png"),
+                                        pygame.image.load("graphics/player_walk_right_3.png")]
+        self.walking_animation_up = [pygame.image.load("graphics/player_walk_up_0.png"),
+                                     pygame.image.load("graphics/player_walk_up_1.png"),
+                                     pygame.image.load("graphics/player_walk_up_2.png"),
+                                     pygame.image.load("graphics/player_walk_up_3.png")]
+        for i in range(4):
+            self.walking_animation_right[i] = pygame.transform.scale_by(self.walking_animation_right[i], 1.5)
+            self.walking_animation_down[i] = pygame.transform.scale_by(self.walking_animation_down[i], 1.5)
+            self.walking_animation_up[i] = pygame.transform.scale_by(self.walking_animation_up[i], 1.5)
         self.player_weapon = pygame.image.load("graphics/weapon.png").convert_alpha()
-        self.rect = self.walking_animation[0].get_rect(center=(screen.get_width() / 2, screen.get_height() / 2))
-        self.image = self.walking_animation[0]
+        self.rect = self.walking_animation_right[0].get_rect(center=(screen.get_width() / 2, screen.get_height() / 2))
+        self.image = self.walking_animation_down[0]
         self.animation_count = 0
 
     def show_stats(self):
@@ -356,16 +367,30 @@ class Player(pygame.sprite.Sprite):
             self.animation_count += 1
         else:
             self.animation_count = 0
-        if self.walking_right:
-            self.image = self.walking_animation[self.animation_count // 4].copy()
-            self.walking_right = False
-        elif self.walking_left:
-            self.image = pygame.transform.flip(self.walking_animation[self.animation_count // 4].copy(), True, False)
-            self.walking_left = False
-        elif self.facing_right:
-            self.image = self.walking_animation[0].copy()
+        if self.walking_direction == 'right':
+            self.image = self.walking_animation_right[self.animation_count // 4].copy()
+            self.walking_direction = ''
+        elif self.walking_direction == 'left':
+            self.image = pygame.transform.flip(self.walking_animation_right[self.animation_count // 4].copy(), True, False)
+            self.walking_direction = ''
+        elif self.walking_direction == 'down':
+            self.image = self.walking_animation_down[self.animation_count // 4].copy()
+            self.walking_direction = ''
+        elif self.walking_direction == 'up':
+            self.image = self.walking_animation_up[self.animation_count // 4].copy()
+            self.walking_direction = ''
+
+        elif self.facing_direction == 'right':
+            self.image = self.walking_animation_right[0].copy()
+        elif self.facing_direction == 'left':
+            self.image = pygame.transform.flip(self.walking_animation_right[0].copy(), True, False)
+        elif self.facing_direction == 'down':
+            self.image = self.walking_animation_down[0].copy()
+        elif self.facing_direction == 'up':
+            self.image = self.walking_animation_up[0].copy()
         else:
-            self.image = pygame.transform.flip(self.walking_animation[0].copy(), True, False)
+            self.image = self.walking_animation_down[0].copy()
+
         if self.damage_cooldown_tracker:
             self.image.fill((100, 0, 0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
@@ -374,20 +399,22 @@ class Player(pygame.sprite.Sprite):
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             if self.rect.top > 0:
                 self.rect.top -= self.speed
+                self.walking_direction = 'up'
+                self.facing_direction = 'up'
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             if self.rect.bottom < screen.get_height():
+                self.walking_direction = 'down'
+                self.facing_direction = 'down'
                 self.rect.bottom += self.speed
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             if self.rect.right < screen.get_width():
-                self.walking_right = True
-                self.walking_left = False
-                self.facing_right = True
+                self.walking_direction = 'right'
+                self.facing_direction = 'right'
                 self.rect.right += self.speed
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             if self.rect.left > 0:
-                self.walking_right = False
-                self.walking_left = True
-                self.facing_right = False
+                self.walking_direction = 'left'
+                self.facing_direction = 'left'
                 self.rect.left -= self.speed
         if pygame.mouse.get_pressed()[0] and not self.shoot_cooldown_tracker:
             self.shoot()
@@ -431,10 +458,10 @@ class Player(pygame.sprite.Sprite):
         self.player_input()
         self.walking()
         self.handle_weapon()
+        self.show_stats()
         self.check_hit()
         self.check_drop()
         self.check_level_up()
-        self.show_stats()
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -516,7 +543,7 @@ progress_bar_font = pygame.font.Font(None, 50)
 in_game_money_font = pygame.font.Font(None, 40)
 bought_upgrades = {
     "Bullet damage": [0, 10, "Increases bullet damage by 5% per level", 250],
-    "Shot speed": [0, 6, "Increases shot speed by 5% per level", 500],
+    "Shot speed": [0, 5, "Increases shot speed by 10% per level", 1000],
     "Bullet speed": [0, 4, "Increases bullet speed by 5% per level", 100],
     "Bullet range": [0, 6, "Increases bullet range by 5% per level", 250],
     "Health": [0, 5, "Increases health by 1 per level", 750],
@@ -547,7 +574,7 @@ pygame.time.set_timer(clock_timer, 1000)
 spawn_timer = pygame.USEREVENT + 2
 pygame.time.set_timer(spawn_timer, 500)
 
-minutes, seconds, frames = 0, 0, 0
+minutes, seconds = 0, 0
 game_active, game_pause, upgrade_shop, death_screen = False, False, False, False
 max_enemies = 20
 
