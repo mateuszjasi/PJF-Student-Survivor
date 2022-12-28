@@ -67,6 +67,7 @@ def game_update():
     bullets.update()
     player.draw(screen)
     player.update()
+    clock_update()
 
 
 def start_game():
@@ -601,7 +602,6 @@ while True:
             pause_menu()
         else:
             game_update()
-            clock_update()
     elif upgrade_shop:
         shop()
     else:
