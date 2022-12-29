@@ -492,13 +492,16 @@ class Enemy(pygame.sprite.Sprite):
             self.animation_count += 1
         else:
             self.animation_count = 0
-        self.image = self.walking_animation[self.animation_count // 4].copy()
         dx, dy = player.sprite.rect.centerx - self.rect.centerx, player.sprite.rect.centery - self.rect.centery
         dist = math.hypot(dx, dy)
         if dist > 0:
             dx, dy = dx / dist, dy / dist
             self.rect.x += round(dx * self.speed)
             self.rect.y += round(dy * self.speed)
+        if dx >= 0:
+            self.image = self.walking_animation[self.animation_count // 4].copy()
+        else:
+            self.image = pygame.transform.flip(self.walking_animation[self.animation_count // 4].copy(), True, False)
         # if player.sprite.rect.centerx != self.rect.centerx:
         #     if player.sprite.rect.centerx > self.rect.centerx:
         #         self.rect.centerx += self.speed
