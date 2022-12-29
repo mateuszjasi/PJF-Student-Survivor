@@ -493,16 +493,22 @@ class Enemy(pygame.sprite.Sprite):
         else:
             self.animation_count = 0
         self.image = self.walking_animation[self.animation_count // 4].copy()
-        if player.sprite.rect.centerx != self.rect.centerx:
-            if player.sprite.rect.centerx > self.rect.centerx:
-                self.rect.centerx += self.speed
-            if player.sprite.rect.centerx < self.rect.centerx:
-                self.rect.centerx -= self.speed
-        if player.sprite.rect.centery != self.rect.centery:
-            if player.sprite.rect.centery > self.rect.centery:
-                self.rect.centery += self.speed
-            if player.sprite.rect.centery < self.rect.centery:
-                self.rect.centery -= self.speed
+        dx, dy = player.sprite.rect.centerx - self.rect.centerx, player.sprite.rect.centery - self.rect.centery
+        dist = math.hypot(dx, dy)
+        if dist > 0:
+            dx, dy = dx / dist, dy / dist
+            self.rect.x += round(dx * self.speed)
+            self.rect.y += round(dy * self.speed)
+        # if player.sprite.rect.centerx != self.rect.centerx:
+        #     if player.sprite.rect.centerx > self.rect.centerx:
+        #         self.rect.centerx += self.speed
+        #     if player.sprite.rect.centerx < self.rect.centerx:
+        #         self.rect.centerx -= self.speed
+        # if player.sprite.rect.centery != self.rect.centery:
+        #     if player.sprite.rect.centery > self.rect.centery:
+        #         self.rect.centery += self.speed
+        #     if player.sprite.rect.centery < self.rect.centery:
+        #         self.rect.centery -= self.speed
         if self.got_hit > 0:
             self.image.fill((255, 255, 255, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
@@ -510,16 +516,22 @@ class Enemy(pygame.sprite.Sprite):
         for enemy in enemies:
             if self != enemy:
                 if self.rect.colliderect(enemy.rect):
-                    if enemy.rect.centerx - self.rect.centerx != 0:
-                        if enemy.rect.centerx > self.rect.centerx:
-                            self.rect.centerx -= self.speed
-                        if enemy.rect.centerx < self.rect.centerx:
-                            self.rect.centerx += self.speed
-                    if enemy.rect.centery - self.rect.centery != 0:
-                        if enemy.rect.centery > self.rect.centery:
-                            self.rect.centery -= self.speed
-                        if enemy.rect.centery < self.rect.centery:
-                            self.rect.centery += self.speed
+                    dx, dy = enemy.rect.centerx - self.rect.centerx, enemy.rect.centery - self.rect.centery
+                    dist = math.hypot(dx, dy)
+                    if dist > 0:
+                        dx, dy = dx / dist, dy / dist
+                        self.rect.x -= round(dx)
+                        self.rect.y -= round(dy)
+                    # if enemy.rect.centerx - self.rect.centerx != 0:
+                    #     if enemy.rect.centerx > self.rect.centerx:
+                    #         self.rect.centerx -= self.speed
+                    #     if enemy.rect.centerx < self.rect.centerx:
+                    #         self.rect.centerx += self.speed
+                    # if enemy.rect.centery - self.rect.centery != 0:
+                    #     if enemy.rect.centery > self.rect.centery:
+                    #         self.rect.centery -= self.speed
+                    #     if enemy.rect.centery < self.rect.centery:
+                    #         self.rect.centery += self.speed
 
     def check_hit(self):
         for bullet in bullets:
