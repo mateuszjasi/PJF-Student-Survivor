@@ -6,13 +6,13 @@ from random import randint
 
 
 def main_menu():
-    screen.fill('lightgrey')
+    screen.blit(main_menu_background, (0, 0))
     start_game_button.process()
     open_shop_button.process()
 
 
 def shop():
-    screen.fill('lightgrey')
+    screen.blit(shop_background, (0, 0))
     for tile in range(0, len(shop_tiles)):
         shop_tiles[tile].process()
     close_shop_button.process()
@@ -53,13 +53,13 @@ def clock_update():
     if seconds >= 60:
         minutes += 1
         seconds = 0
-    time_label = progress_bar_font.render("{:02}:{:02}".format(minutes, seconds), True, (0, 0, 0))
+    time_label = progress_bar_font.render("{:02}:{:02}".format(minutes, seconds), True, 'white')
     time_label_rect = time_label.get_rect(center=(screen.get_width() / 2, 50))
     screen.blit(time_label, time_label_rect)
 
 
 def game_update():
-    screen.fill('darkgrey')
+    screen.blit(game_background, (0, 0))
     drops.draw(screen)
     enemies.draw(screen)
     enemies.update()
@@ -74,7 +74,7 @@ def start_game():
     global game_active
     game_active = True
     player.add(Player(
-        5 + 5 * 0.05 * bought_upgrades["Bullet damage"][0],
+        3 + 3 * 0.05 * bought_upgrades["Bullet damage"][0],
         20 - 20 * 0.1 * bought_upgrades["Shot speed"][0],
         10 + 10 * 0.05 * bought_upgrades["Bullet speed"][0],
         500 + 500 * 0.05 * bought_upgrades["Bullet range"][0],
@@ -229,9 +229,9 @@ class Drop(pygame.sprite.Sprite):
         super().__init__()
         self.value = value
         self.type = drop_type
-        if drop_type == 1:
+        if self.type == 'exp':
             self.image = pygame.image.load("graphics/exp.png").convert_alpha()
-        else:
+        elif self.type == 'money':
             self.image = pygame.image.load("graphics/money.png").convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
@@ -347,7 +347,7 @@ class Player(pygame.sprite.Sprite):
         exp_text_rect = exp_text.get_rect(center=exp_bar.center)
         screen.blit(exp_text, exp_text_rect)
 
-        money_text = in_game_money_font.render("Money: " + str(self.money), True, (0, 0, 0))
+        money_text = in_game_money_font.render("Money: " + str(self.money), True, 'white')
         money_rect = money_text.get_rect(topleft=(10, exp_bar.bottom + 20))
         screen.blit(money_text, money_rect)
 
@@ -436,9 +436,9 @@ class Player(pygame.sprite.Sprite):
             if math.hypot(self.rect.x - drop.rect.x, self.rect.y - drop.rect.y) < self.pickup_range:
                 drop.update()
             if self.rect.colliderect(drop.rect):
-                if drop.type == 1:
+                if drop.type == 'exp':
                     self.exp += drop.value
-                else:
+                elif drop.type == 'money':
                     self.money += drop.value
                 drop.kill()
 
@@ -466,15 +466,18 @@ class Player(pygame.sprite.Sprite):
 
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, health, speed, value):
+    def __init__(self, enemy_type):
         super().__init__()
-        self.health = health
-        self.speed = speed
-        self.value = value
-        self.walking_animation = [pygame.image.load("graphics/enemy_animation_0.png"),
-                                  pygame.image.load("graphics/enemy_animation_1.png"),
-                                  pygame.image.load("graphics/enemy_animation_2.png"),
-                                  pygame.image.load("graphics/enemy_animation_3.png")]
+        self.type = enemy_type
+        self.got_hit = 0
+        if self.type == 'slime':
+            self.health = 5 + minutes
+            self.speed = 1
+            self.value = 1 + minutes // 2
+            self.walking_animation = [pygame.image.load("graphics/enemy_animation_0.png"),
+                                      pygame.image.load("graphics/enemy_animation_1.png"),
+                                      pygame.image.load("graphics/enemy_animation_2.png"),
+                                      pygame.image.load("graphics/enemy_animation_3.png")]
         self.image = self.walking_animation[0]
         self.animation_count = 0
         if randint(0, 2):
@@ -489,7 +492,7 @@ class Enemy(pygame.sprite.Sprite):
             self.animation_count += 1
         else:
             self.animation_count = 0
-        self.image = self.walking_animation[self.animation_count // 4]
+        self.image = self.walking_animation[self.animation_count // 4].copy()
         if player.sprite.rect.centerx != self.rect.centerx:
             if player.sprite.rect.centerx > self.rect.centerx:
                 self.rect.centerx += self.speed
@@ -500,6 +503,8 @@ class Enemy(pygame.sprite.Sprite):
                 self.rect.centery += self.speed
             if player.sprite.rect.centery < self.rect.centery:
                 self.rect.centery -= self.speed
+        if self.got_hit > 0:
+            self.image.fill((255, 255, 255, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
     def prevent_overlap(self):
         for enemy in enemies:
@@ -519,36 +524,48 @@ class Enemy(pygame.sprite.Sprite):
     def check_hit(self):
         for bullet in bullets:
             if self.rect.colliderect(bullet.rect):
-                self.health -= bullet.damage
                 bullet.kill()
+                self.health -= bullet.damage
+                self.got_hit = 4
         if self.health <= 0:
-            drops.add(Drop(self.rect.centerx, self.rect.centery, 1, self.value))
+            drops.add(Drop(self.rect.centerx, self.rect.centery, 'exp', self.value))
             if randint(0, 99) < 5:
-                drops.add(Drop(self.rect.centerx, self.rect.centery, 2, randint(1, 10)))
+                drops.add(Drop(self.rect.centerx, self.rect.centery, 'money', randint(1, 10)))
             self.kill()
+
+    def update_tracers(self):
+        if self.got_hit > 0:
+            self.got_hit -= 1
 
     def update(self):
         self.move_toward_player()
         self.prevent_overlap()
         self.check_hit()
+        self.update_tracers()
 
 
 pygame.init()
 screen = pygame.display.set_mode((1920, 1080))
 pygame.display.set_caption('Wild students in your area')
 clock = pygame.time.Clock()
+
+game_background = pygame.image.load('graphics/game_background.jpg').convert()
+main_menu_background = pygame.image.load('graphics/main_menu_background.jpg').convert()
+shop_background = pygame.image.load('graphics/shop_background.jpg').convert()
+
 button_font = pygame.font.Font(None, 40)
 shop_tile_name_font = pygame.font.Font(None, 34)
 shop_tile_text_font = pygame.font.Font(None, 21)
 progress_bar_font = pygame.font.Font(None, 50)
 in_game_money_font = pygame.font.Font(None, 40)
+
 bought_upgrades = {
     "Bullet damage": [0, 10, "Increases bullet damage by 5% per level", 250],
     "Shot speed": [0, 5, "Increases shot speed by 10% per level", 1000],
     "Bullet speed": [0, 4, "Increases bullet speed by 5% per level", 100],
     "Bullet range": [0, 6, "Increases bullet range by 5% per level", 250],
     "Health": [0, 5, "Increases health by 1 per level", 750],
-    "Movement speed": [0, 10, "Increases movement speed by 5% per level", 300],
+    "Movement speed": [0, 5, "Increases movement speed by 5% per level", 300],
     "Pickup range": [0, 5, "Increases pickup range by 10% per level", 150]
 }
 
@@ -594,7 +611,7 @@ while True:
                 if event.type == clock_timer:
                     seconds += 1
                 if event.type == spawn_timer and len(enemies) < max_enemies:
-                    enemies.add(Enemy(5, 1, 1))
+                    enemies.add(Enemy('slime'))
     if game_active:
         if death_screen:
             death_screen_menu()
