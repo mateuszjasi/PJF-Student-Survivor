@@ -466,18 +466,17 @@ class Player(pygame.sprite.Sprite):
 
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, enemy_type):
+    def __init__(self, enemy_type, health, speed, value):
         super().__init__()
         self.type = enemy_type
         self.got_hit = 0
-        if self.type == 'slime':
-            self.health = 5 + minutes
-            self.speed = 1
-            self.value = 1 + minutes // 2
-            self.walking_animation = [pygame.image.load("graphics/enemy_animation_0.png"),
-                                      pygame.image.load("graphics/enemy_animation_1.png"),
-                                      pygame.image.load("graphics/enemy_animation_2.png"),
-                                      pygame.image.load("graphics/enemy_animation_3.png")]
+        self.health = health + minutes
+        self.speed = speed
+        self.value = value + minutes // 2
+        self.walking_animation = [pygame.image.load("graphics/" + self.type + "_0.png"),
+                                  pygame.image.load("graphics/" + self.type + "_1.png"),
+                                  pygame.image.load("graphics/" + self.type + "_2.png"),
+                                  pygame.image.load("graphics/" + self.type + "_3.png")]
         self.image = self.walking_animation[0]
         self.animation_count = 0
         if randint(0, 2):
@@ -488,7 +487,7 @@ class Enemy(pygame.sprite.Sprite):
                 center=(randint(0, screen.get_width()), random.choice([-50, screen.get_height() + 50])))
 
     def move_toward_player(self):
-        if self.animation_count + 1 < 16:
+        if self.animation_count + 1 < 32:
             self.animation_count += 1
         else:
             self.animation_count = 0
@@ -499,9 +498,9 @@ class Enemy(pygame.sprite.Sprite):
             self.rect.x += round(dx * self.speed)
             self.rect.y += round(dy * self.speed)
         if dx >= 0:
-            self.image = self.walking_animation[self.animation_count // 4].copy()
+            self.image = self.walking_animation[self.animation_count // 8].copy()
         else:
-            self.image = pygame.transform.flip(self.walking_animation[self.animation_count // 4].copy(), True, False)
+            self.image = pygame.transform.flip(self.walking_animation[self.animation_count // 8].copy(), True, False)
         # if player.sprite.rect.centerx != self.rect.centerx:
         #     if player.sprite.rect.centerx > self.rect.centerx:
         #         self.rect.centerx += self.speed
@@ -626,7 +625,7 @@ while True:
                 if event.type == clock_timer:
                     seconds += 1
                 if event.type == spawn_timer and len(enemies) < max_enemies:
-                    enemies.add(Enemy('slime'))
+                    enemies.add(Enemy('golem', 5, 1, 1))
     if game_active:
         if death_screen:
             death_screen_menu()
