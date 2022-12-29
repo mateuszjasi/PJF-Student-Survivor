@@ -625,7 +625,7 @@ while True:
                 if event.type == clock_timer:
                     seconds += 1
                 if event.type == spawn_timer and len(enemies) < max_enemies:
-                    enemies.add(Enemy('golem', 5, 1, 1))
+                    enemies.add(Enemy('slime', 5, 1, 1))
     if game_active:
         if death_screen:
             death_screen_menu()
