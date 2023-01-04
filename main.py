@@ -33,6 +33,12 @@ def pause_menu():
     end_game_button.process()
 
 
+def level_up_menu():
+    global level_up
+    level_up = False
+    print("level up")
+
+
 def death_screen_menu():
     death_screen_button.process()
 
@@ -53,6 +59,8 @@ def clock_update():
     if seconds >= 60:
         minutes += 1
         seconds = 0
+        if minutes % 2 == 0:
+            spawn_boss()
     time_label = progress_bar_font.render("{:02}:{:02}".format(minutes, seconds), True, 'white')
     time_label_rect = time_label.get_rect(center=(screen.get_width() / 2, 50))
     screen.blit(time_label, time_label_rect)
@@ -75,7 +83,7 @@ def start_game():
     game_active = True
     player.add(Player(
         3 + 3 * 0.05 * bought_upgrades["Bullet damage"][0],
-        20 - 20 * 0.1 * bought_upgrades["Shot speed"][0],
+        20 - 20 * 0.05 * bought_upgrades["Shot speed"][0],
         10 + 10 * 0.05 * bought_upgrades["Bullet speed"][0],
         500 + 500 * 0.05 * bought_upgrades["Bullet range"][0],
         4 + bought_upgrades["Health"][0],
@@ -108,6 +116,30 @@ def player_died(player_money):
     death_screen = True
     global_money += player_money
     screen.fill('darkgrey')
+
+
+def spawn_enemy():
+    if minutes == 0:
+        enemies.add(Enemy(wisp_stats))
+    elif minutes == 1:
+        if randint(1, 10) == 1:
+            enemies.add(Enemy(book_stats))
+        else:
+            enemies.add(Enemy(wisp_stats))
+    elif minutes == 2:
+        if randint(1, 10) <= 5:
+            enemies.add(Enemy(book_stats))
+        else:
+            enemies.add(Enemy(wisp_stats))
+    elif minutes == 3:
+        enemies.add(Enemy(book_stats))
+
+
+def spawn_boss():
+    if minutes == 2:
+        enemies.add(Enemy(shadow_stats))
+    if minutes == 4:
+        enemies.add(Enemy(golem_stats))
 
 
 def generate_shop_tiles():
@@ -443,10 +475,14 @@ class Player(pygame.sprite.Sprite):
                 drop.kill()
 
     def check_level_up(self):
-        if self.exp >= self.max_exp:
-            self.exp = 0
+        while self.exp >= self.max_exp:
+            global level_up
+            self.exp -= self.max_exp
             self.level += 1
             self.max_exp = self.level * 10
+            if self.health < self.max_health:
+                self.health += 1
+            level_up = True
 
     def update_trackers(self):
         if self.shoot_cooldown_tracker:
@@ -466,17 +502,23 @@ class Player(pygame.sprite.Sprite):
 
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, enemy_type, health, speed, value):
+    def __init__(self, stats):
         super().__init__()
-        self.type = enemy_type
+        self.type = stats['enemy_type']
+        self.health = stats['health']
+        self.speed = stats['speed']
+        self.value = stats['value']
+        self.boss = stats['boss']
         self.got_hit = 0
-        self.health = health + minutes
-        self.speed = speed
-        self.value = value + minutes // 2
         self.walking_animation = [pygame.image.load("graphics/" + self.type + "_0.png"),
                                   pygame.image.load("graphics/" + self.type + "_1.png"),
                                   pygame.image.load("graphics/" + self.type + "_2.png"),
                                   pygame.image.load("graphics/" + self.type + "_3.png")]
+        if self.boss:
+            self.walking_animation[0] = pygame.transform.scale_by(self.walking_animation[0], 1.5)
+            self.walking_animation[1] = pygame.transform.scale_by(self.walking_animation[1], 1.5)
+            self.walking_animation[2] = pygame.transform.scale_by(self.walking_animation[2], 1.5)
+            self.walking_animation[3] = pygame.transform.scale_by(self.walking_animation[3], 1.5)
         self.image = self.walking_animation[0]
         self.animation_count = 0
         if randint(0, 2):
@@ -517,7 +559,7 @@ class Enemy(pygame.sprite.Sprite):
     def prevent_overlap(self):
         for enemy in enemies:
             if self != enemy:
-                if self.rect.colliderect(enemy.rect):
+                if self.rect.colliderect(enemy.rect) and enemy.speed >= self.speed:
                     dx, dy = enemy.rect.centerx - self.rect.centerx, enemy.rect.centery - self.rect.centery
                     dist = math.hypot(dx, dy)
                     if dist > 0:
@@ -543,8 +585,9 @@ class Enemy(pygame.sprite.Sprite):
                 self.got_hit = 4
         if self.health <= 0:
             drops.add(Drop(self.rect.centerx, self.rect.centery, 'exp', self.value))
-            if randint(0, 99) < 5:
-                drops.add(Drop(self.rect.centerx, self.rect.centery, 'money', randint(1, 10)))
+            if randint(0, 99) < 5 or self.boss:
+                drops.add(Drop(self.rect.centerx, self.rect.centery, 'money',
+                               randint(math.ceil(self.value * 0.5), self.value * 2)))
             self.kill()
 
     def update_tracers(self):
@@ -574,19 +617,51 @@ progress_bar_font = pygame.font.Font(None, 50)
 in_game_money_font = pygame.font.Font(None, 40)
 
 bought_upgrades = {
-    "Bullet damage": [0, 10, "Increases bullet damage by 5% per level", 250],
-    "Shot speed": [0, 5, "Increases shot speed by 10% per level", 1000],
-    "Bullet speed": [0, 4, "Increases bullet speed by 5% per level", 100],
-    "Bullet range": [0, 6, "Increases bullet range by 5% per level", 250],
-    "Health": [0, 5, "Increases health by 1 per level", 750],
-    "Movement speed": [0, 5, "Increases movement speed by 5% per level", 300],
-    "Pickup range": [0, 5, "Increases pickup range by 10% per level", 150]
+    "Bullet damage": [10, 10, "Increases bullet damage by 5% per level", 250],
+    "Shot speed": [5, 5, "Increases shot speed by 5% per level", 1000],
+    "Bullet speed": [4, 4, "Increases bullet speed by 5% per level", 100],
+    "Bullet range": [6, 6, "Increases bullet range by 5% per level", 250],
+    "Health": [5, 5, "Increases health by 1 per level", 750],
+    "Movement speed": [5, 5, "Increases movement speed by 5% per level", 300],
+    "Pickup range": [5, 5, "Increases pickup range by 10% per level", 150]
 }
 
 player = pygame.sprite.GroupSingle()
 enemies = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 drops = pygame.sprite.Group()
+
+wisp_stats = {
+    'enemy_type': 'wisp',
+    'health': 5,
+    'speed': 1,
+    'value': 1,
+    'boss': False
+}
+
+book_stats = {
+    'enemy_type': 'book',
+    'health': 25,
+    'speed': 1.5,
+    'value': 3,
+    'boss': False
+}
+
+shadow_stats = {
+    'enemy_type': 'shadow',
+    'health': 100,
+    'speed': 2,
+    'value': 100,
+    'boss': True
+}
+
+golem_stats = {
+    'enemy_type': 'golem',
+    'health': 200,
+    'speed': 1.5,
+    'value': 100,
+    'boss': True
+}
 
 start_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 200, 200, 100, "Start", start_game)
 open_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 200, 80, "Upgrades", open_shop)
@@ -607,8 +682,8 @@ spawn_timer = pygame.USEREVENT + 2
 pygame.time.set_timer(spawn_timer, 500)
 
 minutes, seconds = 0, 0
-game_active, game_pause, upgrade_shop, death_screen = False, False, False, False
-max_enemies = 20
+game_active, game_pause, upgrade_shop, death_screen, level_up = False, False, False, False, False
+max_enemies = 50
 
 while True:
     for event in pygame.event.get():
@@ -625,12 +700,14 @@ while True:
                 if event.type == clock_timer:
                     seconds += 1
                 if event.type == spawn_timer and len(enemies) < max_enemies:
-                    enemies.add(Enemy('slime', 5, 1, 1))
+                    spawn_enemy()
     if game_active:
         if death_screen:
             death_screen_menu()
         elif game_pause:
             pause_menu()
+        elif level_up:
+            level_up_menu()
         else:
             game_update()
     elif upgrade_shop:
