@@ -16,7 +16,7 @@ def shop():
     for tile in range(0, len(shop_tiles)):
         shop_tiles[tile].process()
     close_shop_button.process()
-    money_text = in_game_money_font.render("Money: " + str(global_money), True, (0, 0, 0))
+    money_text = in_game_money_font.render("Money: " + str(global_money), True, (255, 255, 255))
     money_rect = money_text.get_rect(bottomleft=(10, screen.get_height() - 10))
     screen.blit(money_text, money_rect)
 
@@ -40,6 +40,7 @@ def level_up_menu():
 
 
 def death_screen_menu():
+    screen.blit(death_background, (0, 0))
     death_screen_button.process()
 
 
@@ -79,7 +80,8 @@ def game_update():
 
 
 def start_game():
-    global game_active
+    global game_active, max_enemies
+    max_enemies = 20
     game_active = True
     player.add(Player(
         3 + 3 * 0.05 * bought_upgrades["Bullet damage"][0],
@@ -119,27 +121,82 @@ def player_died(player_money):
 
 
 def spawn_enemy():
+    enemy_chance = randint(1, 10)
     if minutes == 0:
         enemies.add(Enemy(wisp_stats))
     elif minutes == 1:
-        if randint(1, 10) == 1:
+        if enemy_chance == 2:
             enemies.add(Enemy(book_stats))
         else:
             enemies.add(Enemy(wisp_stats))
     elif minutes == 2:
-        if randint(1, 10) <= 5:
+        if enemy_chance <= 6:
             enemies.add(Enemy(book_stats))
         else:
             enemies.add(Enemy(wisp_stats))
     elif minutes == 3:
-        enemies.add(Enemy(book_stats))
+        if enemy_chance == 2:
+            enemies.add(Enemy(bite_stats))
+        elif enemy_chance <= 8:
+            enemies.add(Enemy(book_stats))
+        else:
+            enemies.add(Enemy(wisp_stats))
+    elif minutes == 4:
+        if enemy_chance <= 5:
+            enemies.add(Enemy(bite_stats))
+        else:
+            enemies.add(Enemy(book_stats))
+    elif minutes == 5:
+        if enemy_chance <= 1:
+            enemies.add(Enemy(wisp_hard_stats))
+        else:
+            enemies.add(Enemy(bite_stats))
+    elif minutes == 6:
+        if enemy_chance <= 8:
+            enemies.add(Enemy(wisp_hard_stats))
+        else:
+            enemies.add(Enemy(wisp_stats))
+    elif minutes == 7:
+        if enemy_chance <= 2:
+            enemies.add(Enemy(bite_hard_stats))
+        elif enemy_chance <= 8:
+            enemies.add(Enemy(wisp_hard_stats))
+        else:
+            enemies.add(Enemy(book_stats))
+    elif minutes == 8:
+        if enemy_chance <= 7:
+            enemies.add(Enemy(bite_hard_stats))
+        else:
+            enemies.add(Enemy(bite_stats))
+    elif minutes == 9:
+        if enemy_chance <= 3:
+            enemies.add(Enemy(shadow_stats))
+        else:
+            enemies.add(Enemy(golem_stats))
+    elif minutes == 10:
+        enemies.add(Enemy(shadow_hard_stats))
 
 
 def spawn_boss():
+    global max_enemies
     if minutes == 2:
+        max_enemies = 25
         enemies.add(Enemy(shadow_stats))
     if minutes == 4:
+        max_enemies = 30
         enemies.add(Enemy(golem_stats))
+    if minutes == 6:
+        max_enemies = 35
+        enemies.add(Enemy(shadow_hard_stats))
+    if minutes == 8:
+        max_enemies = 40
+        enemies.add(Enemy(golem_stats))
+        enemies.add(Enemy(golem_stats))
+        enemies.add(Enemy(shadow_stats))
+        enemies.add(Enemy(shadow_stats))
+        enemies.add(Enemy(shadow_hard_stats))
+    if minutes == 10:
+        enemies.empty()
 
 
 def generate_shop_tiles():
@@ -515,10 +572,10 @@ class Enemy(pygame.sprite.Sprite):
                                   pygame.image.load("graphics/" + self.type + "_2.png"),
                                   pygame.image.load("graphics/" + self.type + "_3.png")]
         if self.boss:
-            self.walking_animation[0] = pygame.transform.scale_by(self.walking_animation[0], 1.5)
-            self.walking_animation[1] = pygame.transform.scale_by(self.walking_animation[1], 1.5)
-            self.walking_animation[2] = pygame.transform.scale_by(self.walking_animation[2], 1.5)
-            self.walking_animation[3] = pygame.transform.scale_by(self.walking_animation[3], 1.5)
+            for i in range(4):
+                self.walking_animation[i] = pygame.transform.scale_by(self.walking_animation[i], 1.5)
+        for i in range(4):
+            self.walking_animation[i].fill(stats['color'], special_flags=pygame.BLEND_RGBA_ADD)
         self.image = self.walking_animation[0]
         self.animation_count = 0
         if randint(0, 2):
@@ -559,7 +616,7 @@ class Enemy(pygame.sprite.Sprite):
     def prevent_overlap(self):
         for enemy in enemies:
             if self != enemy:
-                if self.rect.colliderect(enemy.rect) and enemy.speed >= self.speed:
+                if self.rect.colliderect(enemy.rect) and self.speed <= enemy.speed:
                     dx, dy = enemy.rect.centerx - self.rect.centerx, enemy.rect.centery - self.rect.centery
                     dist = math.hypot(dx, dy)
                     if dist > 0:
@@ -586,8 +643,7 @@ class Enemy(pygame.sprite.Sprite):
         if self.health <= 0:
             drops.add(Drop(self.rect.centerx, self.rect.centery, 'exp', self.value))
             if randint(0, 99) < 5 or self.boss:
-                drops.add(Drop(self.rect.centerx, self.rect.centery, 'money',
-                               randint(math.ceil(self.value * 0.5), self.value * 2)))
+                drops.add(Drop(self.rect.centerx, self.rect.centery, 'money', randint(1, 10) * 15 if self.boss else 1))
             self.kill()
 
     def update_tracers(self):
@@ -603,12 +659,13 @@ class Enemy(pygame.sprite.Sprite):
 
 pygame.init()
 screen = pygame.display.set_mode((1920, 1080))
-pygame.display.set_caption('Wild students in your area')
+pygame.display.set_caption('Computer survivors')
 clock = pygame.time.Clock()
 
 game_background = pygame.image.load('graphics/game_background.jpg').convert()
 main_menu_background = pygame.image.load('graphics/main_menu_background.jpg').convert()
 shop_background = pygame.image.load('graphics/shop_background.jpg').convert()
+death_background = pygame.image.load('graphics/death_background.jpg').convert()
 
 button_font = pygame.font.Font(None, 40)
 shop_tile_name_font = pygame.font.Font(None, 34)
@@ -636,30 +693,70 @@ wisp_stats = {
     'health': 5,
     'speed': 1,
     'value': 1,
+    'color': (0, 0, 0, 0),
+    'boss': False
+}
+
+wisp_hard_stats = {
+    'enemy_type': 'wisp',
+    'health': 50,
+    'speed': 2,
+    'value': 20,
+    'color': (0, 0, 255, 0),
     'boss': False
 }
 
 book_stats = {
     'enemy_type': 'book',
-    'health': 25,
-    'speed': 1.5,
-    'value': 3,
+    'health': 20,
+    'speed': 1,
+    'value': 4,
+    'color': (0, 0, 0, 0),
+    'boss': False
+}
+
+bite_stats = {
+    'enemy_type': 'bite',
+    'health': 50,
+    'speed': 1,
+    'value': 10,
+    'color': (0, 0, 0, 0),
+    'boss': False
+}
+
+bite_hard_stats = {
+    'enemy_type': 'bite',
+    'health': 100,
+    'speed': 2,
+    'value': 40,
+    'color': (0, 60, 60, 0),
     'boss': False
 }
 
 shadow_stats = {
     'enemy_type': 'shadow',
     'health': 100,
-    'speed': 2,
-    'value': 100,
+    'speed': 3,
+    'value': 80,
+    'color': (0, 0, 0, 0),
+    'boss': True
+}
+
+shadow_hard_stats = {
+    'enemy_type': 'shadow',
+    'health': 300,
+    'speed': 3,
+    'value': 180,
+    'color': (63, 0, 0, 0),
     'boss': True
 }
 
 golem_stats = {
     'enemy_type': 'golem',
-    'health': 200,
-    'speed': 1.5,
+    'health': 500,
+    'speed': 1,
     'value': 100,
+    'color': (0, 0, 0, 0),
     'boss': True
 }
 
@@ -683,7 +780,7 @@ pygame.time.set_timer(spawn_timer, 500)
 
 minutes, seconds = 0, 0
 game_active, game_pause, upgrade_shop, death_screen, level_up = False, False, False, False, False
-max_enemies = 50
+max_enemies = 20
 
 while True:
     for event in pygame.event.get():
