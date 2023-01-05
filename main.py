@@ -164,17 +164,17 @@ def spawn_enemy():
         else:
             enemies.add(Enemy(book_stats))
     elif minutes == 8:
-        if enemy_chance <= 7:
+        if enemy_chance == 1:
+            enemies.add(Enemy(shadow_stats))
+        elif enemy_chance <= 7:
             enemies.add(Enemy(bite_hard_stats))
         else:
             enemies.add(Enemy(bite_stats))
     elif minutes == 9:
         if enemy_chance <= 3:
-            enemies.add(Enemy(shadow_stats))
+            enemies.add(Enemy(shadow_hard_stats))
         else:
             enemies.add(Enemy(golem_stats))
-    elif minutes == 10:
-        enemies.add(Enemy(shadow_hard_stats))
 
 
 def spawn_boss():
@@ -197,6 +197,7 @@ def spawn_boss():
         enemies.add(Enemy(shadow_hard_stats))
     if minutes == 10:
         enemies.empty()
+        enemies.add(Enemy(death_stats))
 
 
 def generate_shop_tiles():
@@ -756,6 +757,15 @@ golem_stats = {
     'health': 500,
     'speed': 1,
     'value': 100,
+    'color': (0, 0, 0, 0),
+    'boss': True
+}
+
+death_stats = {
+    'enemy_type': 'death',
+    'health': 99999,
+    'speed': 10,
+    'value': 0,
     'color': (0, 0, 0, 0),
     'boss': True
 }
