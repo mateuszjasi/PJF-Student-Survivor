@@ -1,8 +1,19 @@
+import os
 import random
 import pygame
 import math
 from sys import exit
 from random import randint
+
+
+def close_app():
+    file = open("data.txt", "w")
+    file.write(str(global_money) + '\n')
+    for i in bought_upgrades:
+        file.write(str(bought_upgrades[i][0]) + '\n')
+    file.close()
+    pygame.quit()
+    exit()
 
 
 def main_menu():
@@ -24,8 +35,24 @@ def shop():
 def buy_upgrade(arguments):
     global bought_upgrades, global_money
     if global_money >= bought_upgrades[arguments[0]][3] * (bought_upgrades[arguments[0]][0] + 1):
-        bought_upgrades[arguments[0]][0] += 1
         global_money -= bought_upgrades[arguments[0]][3] * (bought_upgrades[arguments[0]][0] + 1)
+        bought_upgrades[arguments[0]][0] += 1
+
+
+def take_upgrade(arguments):
+    global level_up, choose_options
+    taken_upgrades[arguments[0]][0] += 1
+    player.sprite.curr_stats[arguments[0]] = \
+        player.sprite.base_stats[arguments[0]] + taken_upgrades[arguments[0]][0] * taken_upgrades[arguments[0]][2]
+    if arguments[0] == "Health":
+        player.sprite.curr_stats[arguments[0]] += bought_upgrades[arguments[0]][0] * bought_upgrades[arguments[0]][4]
+        player.sprite.health += 1
+    else:
+        player.sprite.curr_stats[arguments[0]] = \
+            player.sprite.curr_stats[arguments[0]] + player.sprite.curr_stats[arguments[0]] \
+            * bought_upgrades[arguments[0]][0] * bought_upgrades[arguments[0]][4]
+    level_up = False
+    choose_options = True
 
 
 def pause_menu():
@@ -34,9 +61,13 @@ def pause_menu():
 
 
 def level_up_menu():
-    global level_up
-    level_up = False
-    print("level up")
+    global choose_options, option1, option2, option3
+    if choose_options:
+        option1, option2, option3 = random.sample(range(0, len(upgrade_tiles)), 3)
+        choose_options = False
+    upgrade_tiles[option1].process(screen.get_width() / 2 - 350, screen.get_height() / 2)
+    upgrade_tiles[option2].process(screen.get_width() / 2, screen.get_height() / 2)
+    upgrade_tiles[option3].process(screen.get_width() / 2 + 350, screen.get_height() / 2)
 
 
 def death_screen_menu():
@@ -82,15 +113,10 @@ def game_update():
 def start_game():
     global game_active, max_enemies
     max_enemies = 20
+    for i in taken_upgrades:
+        taken_upgrades[i][0] = 0
     game_active = True
-    player.add(Player(
-        3 + 3 * 0.05 * bought_upgrades["Bullet damage"][0],
-        20 - 20 * 0.05 * bought_upgrades["Shot speed"][0],
-        10 + 10 * 0.05 * bought_upgrades["Bullet speed"][0],
-        500 + 500 * 0.05 * bought_upgrades["Bullet range"][0],
-        4 + bought_upgrades["Health"][0],
-        2 + 2 * 0.1 * bought_upgrades["Movement speed"][0],
-        100 + 100 * 0.1 * bought_upgrades["Pickup range"][0]))
+    player.add(Player(player_stats))
 
 
 def open_shop():
@@ -202,14 +228,21 @@ def spawn_boss():
 
 def generate_shop_tiles():
     global shop_tiles
-    height, width = 250, 300
-    x, y = 10, 20
+    height, width = 300, 300
+    x, y = 30, 20
     for i in bought_upgrades:
         shop_tiles.append(ShopTile(x, y, width, height, i))
         x += width + 10
         if x + width + 10 >= screen.get_width():
-            x = 10
+            x = 30
             y += height + 20
+
+
+def generate_upgrade_tiles():
+    global upgrade_tiles
+    height, width = 300, 300
+    for i in taken_upgrades:
+        upgrade_tiles.append(UpgradeTile(width, height, i))
 
 
 class Button:
@@ -314,6 +347,39 @@ class ShopTile:
             self.buy_button.buttonText = '---'
 
 
+class UpgradeTile:
+    def __init__(self, width, height, upgrade_name="Tile"):
+        self.width = width
+        self.height = height
+        self.upgrade_name = upgrade_name
+        self.tileSurface = pygame.Surface((self.width, self.height))
+        self.tileRect = pygame.Rect(0, 0, self.width, self.height)
+        self.tileName = upgrade_tile_name_font.render(upgrade_name, True, (0, 0, 0))
+        self.tileSurface.fill((255, 0, 0))
+
+    def process(self, x, y):
+        self.tileRect.center = (x, y)
+        take_button = Button(self.tileRect.centerx, self.tileRect.bottom - 35, 150, 60,
+                                  "Take", take_upgrade, [self.upgrade_name])
+        self.tileSurface.blit(self.tileName, [self.tileRect.width / 2 - self.tileName.get_rect().width / 2, 5])
+        word_x, word_y = 10, 50
+        word_height = 0
+        for lines in [word.split(' ') for word in taken_upgrades[self.upgrade_name][1].splitlines()]:
+            for words in lines:
+                word_surface = upgrade_tile_text_font.render(words, True, (0, 0, 0))
+                word_width, word_height = word_surface.get_size()
+                if word_x + word_width >= self.width:
+                    word_x = 10
+                    word_y += word_height
+                self.tileSurface.blit(word_surface, (word_x, word_y))
+                word_x += word_width + upgrade_tile_text_font.size(' ')[0]
+            word_x = 10
+            word_y += word_height
+        screen.blit(self.tileSurface, self.tileRect)
+        pygame.draw.rect(screen, (0, 0, 0), self.tileRect, 3)
+        take_button.process()
+
+
 class Drop(pygame.sprite.Sprite):
     def __init__(self, x, y, drop_type, value):
         super().__init__()
@@ -352,10 +418,6 @@ class PlayerBullet(pygame.sprite.Sprite):
         self.y_vel = math.sin(angle) * bullet_speed
         self.distance = math.hypot(self.x_vel, self.y_vel)
         self.image = pygame.transform.rotate(pygame.image.load("graphics/bullet.png").convert_alpha(), -math.degrees(angle % (2 * math.pi)))
-        # self.image = pygame.Surface([10, 10])
-        # self.image.fill((255, 255, 255))
-        # self.image.set_colorkey((255, 255, 255))
-        # pygame.draw.circle(self.image, (0, 0, 0), (self.image.get_width() / 2, self.image.get_height() / 2), 5)
         self.rect = self.image.get_rect()
         self.rect.x = self.x
         self.rect.y = self.y
@@ -379,25 +441,25 @@ class PlayerBullet(pygame.sprite.Sprite):
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, bullet_damage, shoot_cooldown, bullet_speed, bullet_range, max_health, speed, pickup_range):
+    def __init__(self, base_stats):
         super().__init__()
-        self.walking_direction = "down"
-        self.facing_direction = "down"
-        self.damage = bullet_damage
-        self.speed = speed
-        self.max_health = max_health
-        self.shoot_cooldown = shoot_cooldown
-        self.bullet_speed = bullet_speed
-        self.bullet_range = bullet_range
-        self.pickup_range = pickup_range
+        self.base_stats = base_stats
+        self.curr_stats = {}
+        for i in base_stats:
+            if i == "Health":
+                self.curr_stats[i] = self.base_stats[i] + bought_upgrades[i][0] * bought_upgrades[i][4]
+            else:
+                self.curr_stats[i] = self.base_stats[i] + self.base_stats[i] * bought_upgrades[i][0] * bought_upgrades[i][4]
+        self.health = self.curr_stats["Health"]
         self.level = 1
         self.max_exp = 10
         self.exp = 0
         self.money = 0
-        self.health = self.max_health
-        self.shoot_cooldown_tracker = 5
         self.damage_cooldown = 30
+        self.shoot_cooldown_tracker = 10
         self.damage_cooldown_tracker = 0
+        self.walking_direction = "down"
+        self.facing_direction = "down"
         self.walking_animation_down = [pygame.image.load("graphics/player_walk_down_0.png"),
                                        pygame.image.load("graphics/player_walk_down_1.png"),
                                        pygame.image.load("graphics/player_walk_down_2.png"),
@@ -425,8 +487,8 @@ class Player(pygame.sprite.Sprite):
 
         pygame.draw.rect(screen, (0, 0, 0), (10, 10, width + 10, height + 10), 5)
         health_bar = pygame.draw.rect(screen, (128, 128, 128), (15, 15, width, height))
-        pygame.draw.rect(screen, (255, 0, 0), (15, 15, width * self.health / self.max_health, height))
-        health_text = progress_bar_font.render(str(self.health) + " / " + str(self.max_health), True, (0, 0, 0))
+        pygame.draw.rect(screen, (255, 0, 0), (15, 15, width * self.health / self.curr_stats["Health"], height))
+        health_text = progress_bar_font.render(str(self.health) + " / " + str(self.curr_stats["Health"]), True, (0, 0, 0))
         health_text_rect = health_text.get_rect(center=health_bar.center)
         screen.blit(health_text, health_text_rect)
 
@@ -489,30 +551,31 @@ class Player(pygame.sprite.Sprite):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             if self.rect.top > 0:
-                self.rect.top -= self.speed
+                self.rect.top -= self.curr_stats["Movement speed"]
                 self.walking_direction = 'up'
                 self.facing_direction = 'up'
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             if self.rect.bottom < screen.get_height():
                 self.walking_direction = 'down'
                 self.facing_direction = 'down'
-                self.rect.bottom += self.speed
+                self.rect.bottom += self.curr_stats["Movement speed"]
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             if self.rect.right < screen.get_width():
                 self.walking_direction = 'right'
                 self.facing_direction = 'right'
-                self.rect.right += self.speed
+                self.rect.right += self.curr_stats["Movement speed"]
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             if self.rect.left > 0:
                 self.walking_direction = 'left'
                 self.facing_direction = 'left'
-                self.rect.left -= self.speed
+                self.rect.left -= self.curr_stats["Movement speed"]
         if pygame.mouse.get_pressed()[0] and not self.shoot_cooldown_tracker:
             self.shoot()
 
     def shoot(self):
-        bullets.add(PlayerBullet(self.damage, self.bullet_speed, self.bullet_range))
-        self.shoot_cooldown_tracker = self.shoot_cooldown
+        bullets.add(PlayerBullet(self.curr_stats["Bullet damage"],
+                                 self.curr_stats["Bullet speed"], self.curr_stats["Bullet range"]))
+        self.shoot_cooldown_tracker = self.curr_stats["Shot speed"]
 
     def check_hit(self):
         if pygame.sprite.spritecollide(player.sprite, enemies, False) and not self.damage_cooldown_tracker:
@@ -523,7 +586,7 @@ class Player(pygame.sprite.Sprite):
 
     def check_drop(self):
         for drop in drops:
-            if math.hypot(self.rect.x - drop.rect.x, self.rect.y - drop.rect.y) < self.pickup_range:
+            if math.hypot(self.rect.x - drop.rect.x, self.rect.y - drop.rect.y) < self.curr_stats["Pickup range"]:
                 drop.update()
             if self.rect.colliderect(drop.rect):
                 if drop.type == 'exp':
@@ -538,12 +601,14 @@ class Player(pygame.sprite.Sprite):
             self.exp -= self.max_exp
             self.level += 1
             self.max_exp = self.level * 10
-            if self.health < self.max_health:
+            if self.health < self.curr_stats["Health"]:
                 self.health += 1
             level_up = True
 
     def update_trackers(self):
-        if self.shoot_cooldown_tracker:
+        if self.shoot_cooldown_tracker < 1:
+            self.shoot_cooldown_tracker = 0
+        elif self.shoot_cooldown_tracker:
             self.shoot_cooldown_tracker -= 1
         if self.damage_cooldown_tracker:
             self.damage_cooldown_tracker -= 1
@@ -601,16 +666,6 @@ class Enemy(pygame.sprite.Sprite):
             self.image = self.walking_animation[self.animation_count // 8].copy()
         else:
             self.image = pygame.transform.flip(self.walking_animation[self.animation_count // 8].copy(), True, False)
-        # if player.sprite.rect.centerx != self.rect.centerx:
-        #     if player.sprite.rect.centerx > self.rect.centerx:
-        #         self.rect.centerx += self.speed
-        #     if player.sprite.rect.centerx < self.rect.centerx:
-        #         self.rect.centerx -= self.speed
-        # if player.sprite.rect.centery != self.rect.centery:
-        #     if player.sprite.rect.centery > self.rect.centery:
-        #         self.rect.centery += self.speed
-        #     if player.sprite.rect.centery < self.rect.centery:
-        #         self.rect.centery -= self.speed
         if self.got_hit > 0:
             self.image.fill((255, 255, 255, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
@@ -624,16 +679,6 @@ class Enemy(pygame.sprite.Sprite):
                         dx, dy = dx / dist, dy / dist
                         self.rect.x -= round(dx)
                         self.rect.y -= round(dy)
-                    # if enemy.rect.centerx - self.rect.centerx != 0:
-                    #     if enemy.rect.centerx > self.rect.centerx:
-                    #         self.rect.centerx -= self.speed
-                    #     if enemy.rect.centerx < self.rect.centerx:
-                    #         self.rect.centerx += self.speed
-                    # if enemy.rect.centery - self.rect.centery != 0:
-                    #     if enemy.rect.centery > self.rect.centery:
-                    #         self.rect.centery -= self.speed
-                    #     if enemy.rect.centery < self.rect.centery:
-                    #         self.rect.centery += self.speed
 
     def check_hit(self):
         for bullet in bullets:
@@ -669,25 +714,56 @@ shop_background = pygame.image.load('graphics/shop_background.jpg').convert()
 death_background = pygame.image.load('graphics/death_background.jpg').convert()
 
 button_font = pygame.font.Font(None, 40)
-shop_tile_name_font = pygame.font.Font(None, 34)
-shop_tile_text_font = pygame.font.Font(None, 21)
+shop_tile_name_font = pygame.font.Font(None, 40)
+shop_tile_text_font = pygame.font.Font(None, 30)
+upgrade_tile_name_font = pygame.font.Font(None, 40)
+upgrade_tile_text_font = pygame.font.Font(None, 30)
 progress_bar_font = pygame.font.Font(None, 50)
 in_game_money_font = pygame.font.Font(None, 40)
 
+global_money = 0
 bought_upgrades = {
-    "Bullet damage": [10, 10, "Increases bullet damage by 5% per level", 250],
-    "Shot speed": [5, 5, "Increases shot speed by 5% per level", 1000],
-    "Bullet speed": [4, 4, "Increases bullet speed by 5% per level", 100],
-    "Bullet range": [6, 6, "Increases bullet range by 5% per level", 250],
-    "Health": [5, 5, "Increases health by 1 per level", 750],
-    "Movement speed": [5, 5, "Increases movement speed by 5% per level", 300],
-    "Pickup range": [5, 5, "Increases pickup range by 10% per level", 150]
+    "Bullet damage": [0, 20, "Increases bullet damage by 5% per level", 300, 0.05],
+    "Shot speed": [0, 5, "Decreases shot speed cooldown by 5% per level", 1000, -0.05],
+    "Bullet speed": [0, 5, "Increases bullet speed by 10% per level", 200, 0.05],
+    "Bullet range": [0, 10, "Increases bullet range by 5% per level", 350, 0.05],
+    "Health": [0, 7, "Increases health by 1 per level", 3000, 1],
+    "Movement speed": [0, 2, "Increases movement speed by 1 per level", 5000, 1],
+    "Pickup range": [0, 10, "Increases pickup range by 10% per level", 250, 0.1]
+}
+
+if os.path.exists("data.txt"):
+    file_read = open("data.txt", 'r')
+    global_money = int(file_read.readline())
+    for upgrade in bought_upgrades:
+        bought_upgrades[upgrade][0] = int(file_read.readline())
+        if bought_upgrades[upgrade][0] > bought_upgrades[upgrade][1]:
+            bought_upgrades[upgrade][0] = bought_upgrades[upgrade][1]
+    file_read.close()
+
+taken_upgrades = {
+    "Bullet damage": [0, "Increases base bullet damage by 1 per level", 1],
+    "Shot speed": [0, "Decreases base shot speed cooldown by 1 per level", -1],
+    "Bullet speed": [0, "Increases base bullet speed by 1 per level", 1],
+    "Bullet range": [0, "Increases base bullet range by 25 per level", 25],
+    "Health": [0, "Increases health by 1 per level", 1],
+    "Pickup range": [0, "Increases base pickup range by 25 per level", 25]
 }
 
 player = pygame.sprite.GroupSingle()
 enemies = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 drops = pygame.sprite.Group()
+
+player_stats = {
+    "Bullet damage": 2,
+    "Shot speed": 30,
+    "Bullet speed": 5,
+    "Bullet range": 250,
+    "Health": 3,
+    "Movement speed": 1,
+    "Pickup range": 50
+}
 
 wisp_stats = {
     'enemy_type': 'wisp',
@@ -763,7 +839,7 @@ golem_stats = {
 
 death_stats = {
     'enemy_type': 'death',
-    'health': 99999,
+    'health': 999999,
     'speed': 10,
     'value': 0,
     'color': (0, 0, 0, 0),
@@ -779,8 +855,8 @@ death_screen_button = Button(screen.get_width() / 2, screen.get_height() / 2, 20
 
 shop_tiles = []
 generate_shop_tiles()
-
-global_money = 99999
+upgrade_tiles = []
+generate_upgrade_tiles()
 
 clock_timer = pygame.USEREVENT + 1
 pygame.time.set_timer(clock_timer, 1000)
@@ -792,11 +868,13 @@ minutes, seconds = 0, 0
 game_active, game_pause, upgrade_shop, death_screen, level_up = False, False, False, False, False
 max_enemies = 20
 
+option1, option2, option3 = 0, 0, 0
+choose_options = True
+
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            pygame.quit()
-            exit()
+            close_app()
         if game_active:
             if game_pause:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
