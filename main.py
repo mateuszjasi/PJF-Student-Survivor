@@ -93,6 +93,9 @@ def clock_update():
         seconds = 0
         if minutes % 2 == 0:
             spawn_boss()
+    if minutes >= 10 and len(enemies) == 0:
+        for i in range(0, max_enemies):
+            enemies.add(Enemy(death_stats))
     time_label = progress_bar_font.render("{:02}:{:02}".format(minutes, seconds), True, 'white')
     time_label_rect = time_label.get_rect(center=(screen.get_width() / 2, 50))
     screen.blit(time_label, time_label_rect)
@@ -256,25 +259,28 @@ class Button:
         self.active = active
         self.alreadyPressed = False
         self.fillColors = {
-            'normal': (255, 0, 0),
-            'hover': (200, 0, 0),
-            'pressed': (100, 0, 0),
+            'normal': (0, 0, 0, 0),
+            'hover': (75, 75, 75, 0),
+            'pressed': (150, 150, 150, 0),
         }
-        self.buttonSurface = pygame.Surface((self.width, self.height))
+        self.image = pygame.transform.scale(pygame.image.load("graphics/button.png").convert_alpha(),
+                                            (self.width, self.height))
+        self.buttonSurface = self.image.copy()
         self.buttonRect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.buttonRect.center = (self.x, self.y)
         self.buttonText = buttonText
         self.alreadyPressed = False
 
     def process(self):
-        button_surf = button_font.render(self.buttonText, True, (0, 0, 0))
+        button_surf = button_font.render(self.buttonText, True, (255, 255, 255))
         mouse_position = pygame.mouse.get_pos()
+        self.buttonSurface = self.image.copy()
         if self.active:
-            self.buttonSurface.fill(self.fillColors['normal'])
+            self.buttonSurface.fill(self.fillColors['normal'], special_flags=pygame.BLEND_RGBA_SUB)
             if self.buttonRect.collidepoint(mouse_position):
-                self.buttonSurface.fill(self.fillColors['hover'])
+                self.buttonSurface.fill(self.fillColors['hover'], special_flags=pygame.BLEND_RGBA_SUB)
                 if pygame.mouse.get_pressed()[0]:
-                    self.buttonSurface.fill(self.fillColors['pressed'])
+                    self.buttonSurface.fill(self.fillColors['pressed'], special_flags=pygame.BLEND_RGBA_SUB)
                     if not self.alreadyPressed:
                         if self.arguments:
                             self.onclickFunction(self.arguments)
@@ -284,13 +290,13 @@ class Button:
                 else:
                     self.alreadyPressed = False
         else:
-            self.buttonSurface.fill(self.fillColors['pressed'])
+            self.buttonSurface.fill(self.fillColors['pressed'], special_flags=pygame.BLEND_RGBA_SUB)
+            button_surf = button_font.render(self.buttonText, True, (0, 0, 0))
         self.buttonSurface.blit(button_surf, [
             self.buttonRect.width / 2 - button_surf.get_rect().width / 2,
             self.buttonRect.height / 2 - button_surf.get_rect().height / 2
         ])
         screen.blit(self.buttonSurface, self.buttonRect)
-        pygame.draw.rect(screen, (0, 0, 0), self.buttonRect, 3)
 
 
 class ShopTile:
@@ -300,43 +306,45 @@ class ShopTile:
         self.width = width
         self.height = height
         self.upgrade_name = upgrade_name
-        self.tileSurface = pygame.Surface((self.width, self.height))
+        self.image = pygame.transform.scale(pygame.image.load("graphics/tile.png").convert_alpha(),
+                                            (self.width, self.height))
+        self.tileSurface = self.image
         self.tileRect = pygame.Rect(self.x, self.y, self.width, self.height)
-        self.tileName = shop_tile_name_font.render(upgrade_name, True, (0, 0, 0))
+        self.tileName = shop_tile_name_font.render(upgrade_name, True, (255, 255, 255))
         self.fillColors = {
-            'normal': (255, 0, 0),
-            'fully_upgraded': (100, 0, 0)
+            'normal': (0, 0, 0, 0),
+            'fully_upgraded': (150, 150, 150, 0)
         }
-        self.buy_button = Button(self.tileRect.centerx, self.tileRect.bottom - 35, 150, 60,
+        self.buy_button = Button(self.tileRect.centerx, self.tileRect.bottom - 45, 150, 60,
                                  str((bought_upgrades[self.upgrade_name][0] + 1)
                                      * bought_upgrades[self.upgrade_name][3]), buy_upgrade, [self.upgrade_name],
                                  True if bought_upgrades[self.upgrade_name][0]
                                          < bought_upgrades[self.upgrade_name][1] else False)
 
     def process(self):
+        self.tileSurface = self.image.copy()
         if bought_upgrades[self.upgrade_name][0] < bought_upgrades[self.upgrade_name][1]:
-            self.tileSurface.fill(self.fillColors['normal'])
+            self.tileSurface.fill(self.fillColors['normal'], special_flags=pygame.BLEND_RGBA_SUB)
         else:
-            self.tileSurface.fill(self.fillColors['fully_upgraded'])
-        self.tileSurface.blit(self.tileName, [self.tileRect.width / 2 - self.tileName.get_rect().width / 2, 5])
+            self.tileSurface.fill(self.fillColors['fully_upgraded'], special_flags=pygame.BLEND_RGBA_SUB)
+        self.tileSurface.blit(self.tileName, [self.tileRect.width / 2 - self.tileName.get_rect().width / 2, 15])
         tile_lvl = shop_tile_name_font.render("Lvl " + str(bought_upgrades[self.upgrade_name][0]) + " / " +
-                                                  str(bought_upgrades[self.upgrade_name][1]), True, (0, 0, 0))
-        self.tileSurface.blit(tile_lvl, [self.tileRect.width / 2 - tile_lvl.get_rect().width / 2, 5 + self.tileName.get_height()])
-        word_x, word_y = 10, 60
+                                                  str(bought_upgrades[self.upgrade_name][1]), True, (255, 255, 255))
+        self.tileSurface.blit(tile_lvl, [self.tileRect.width / 2 - tile_lvl.get_rect().width / 2, 15 + self.tileName.get_height()])
+        word_x, word_y = 15, 75
         word_height = 0
         for lines in [word.split(' ') for word in bought_upgrades[self.upgrade_name][2].splitlines()]:
             for words in lines:
-                word_surface = shop_tile_text_font.render(words, True, (0, 0, 0))
+                word_surface = shop_tile_text_font.render(words, True, (255, 255, 255))
                 word_width, word_height = word_surface.get_size()
-                if word_x + word_width >= self.width:
-                    word_x = 10
+                if word_x + word_width >= self.width - 5:
+                    word_x = 15
                     word_y += word_height
                 self.tileSurface.blit(word_surface, (word_x, word_y))
                 word_x += word_width + shop_tile_text_font.size(' ')[0]
-            word_x = 10
+            word_x = 15
             word_y += word_height
         screen.blit(self.tileSurface, self.tileRect)
-        pygame.draw.rect(screen, (0, 0, 0), self.tileRect, 3)
         self.buy_button.process()
         if bought_upgrades[self.upgrade_name][0] < bought_upgrades[self.upgrade_name][1]:
             self.buy_button.active = True
@@ -352,31 +360,30 @@ class UpgradeTile:
         self.width = width
         self.height = height
         self.upgrade_name = upgrade_name
-        self.tileSurface = pygame.Surface((self.width, self.height))
+        self.tileSurface = pygame.transform.scale(pygame.image.load("graphics/tile.png").convert_alpha(),
+                                                  (self.width, self.height))
         self.tileRect = pygame.Rect(0, 0, self.width, self.height)
-        self.tileName = upgrade_tile_name_font.render(upgrade_name, True, (0, 0, 0))
-        self.tileSurface.fill((255, 0, 0))
+        self.tileName = upgrade_tile_name_font.render(upgrade_name, True, (255, 255, 255))
 
     def process(self, x, y):
         self.tileRect.center = (x, y)
-        take_button = Button(self.tileRect.centerx, self.tileRect.bottom - 35, 150, 60,
+        take_button = Button(self.tileRect.centerx, self.tileRect.bottom - 45, 150, 60,
                                   "Take", take_upgrade, [self.upgrade_name])
-        self.tileSurface.blit(self.tileName, [self.tileRect.width / 2 - self.tileName.get_rect().width / 2, 5])
-        word_x, word_y = 10, 50
+        self.tileSurface.blit(self.tileName, [self.tileRect.width / 2 - self.tileName.get_rect().width / 2, 20])
+        word_x, word_y = 15, 75
         word_height = 0
         for lines in [word.split(' ') for word in taken_upgrades[self.upgrade_name][1].splitlines()]:
             for words in lines:
-                word_surface = upgrade_tile_text_font.render(words, True, (0, 0, 0))
+                word_surface = upgrade_tile_text_font.render(words, True, (255, 255, 255))
                 word_width, word_height = word_surface.get_size()
-                if word_x + word_width >= self.width:
-                    word_x = 10
+                if word_x + word_width >= self.width - 5:
+                    word_x = 15
                     word_y += word_height
                 self.tileSurface.blit(word_surface, (word_x, word_y))
                 word_x += word_width + upgrade_tile_text_font.size(' ')[0]
-            word_x = 10
+            word_x = 15
             word_y += word_height
         screen.blit(self.tileSurface, self.tileRect)
-        pygame.draw.rect(screen, (0, 0, 0), self.tileRect, 3)
         take_button.process()
 
 
@@ -618,10 +625,10 @@ class Player(pygame.sprite.Sprite):
         self.player_input()
         self.walking()
         self.handle_weapon()
-        self.show_stats()
         self.check_hit()
         self.check_drop()
         self.check_level_up()
+        self.show_stats()
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -689,7 +696,8 @@ class Enemy(pygame.sprite.Sprite):
         if self.health <= 0:
             drops.add(Drop(self.rect.centerx, self.rect.centery, 'exp', self.value))
             if randint(0, 99) < 5 or self.boss:
-                drops.add(Drop(self.rect.centerx, self.rect.centery, 'money', randint(1, 10) * 15 if self.boss else 1))
+                drops.add(Drop(self.rect.centerx, self.rect.centery, 'money', randint(1, 10) * 15 if self.boss
+                               else randint(math.ceil(self.value / 2), self.value * 2)))
             self.kill()
 
     def update_tracers(self):
@@ -739,6 +747,8 @@ if os.path.exists("data.txt"):
         bought_upgrades[upgrade][0] = int(file_read.readline())
         if bought_upgrades[upgrade][0] > bought_upgrades[upgrade][1]:
             bought_upgrades[upgrade][0] = bought_upgrades[upgrade][1]
+        elif bought_upgrades[upgrade][0] < 0:
+            bought_upgrades[upgrade][0] = 0
     file_read.close()
 
 taken_upgrades = {
