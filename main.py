@@ -283,16 +283,17 @@ class Button:
         if self.active:
             self.buttonSurface.fill(self.fillColors['normal'], special_flags=pygame.BLEND_RGBA_SUB)
             if self.buttonRect.collidepoint(mouse_position):
-                self.buttonSurface.fill(self.fillColors['hover'], special_flags=pygame.BLEND_RGBA_SUB)
                 if pygame.mouse.get_pressed()[0]:
                     self.buttonSurface.fill(self.fillColors['pressed'], special_flags=pygame.BLEND_RGBA_SUB)
                     if not self.alreadyPressed:
+                        pygame.mixer.Sound.play(click_sound)
                         if self.arguments:
                             self.onclickFunction(self.arguments)
                         else:
                             self.onclickFunction()
                         self.alreadyPressed = True
                 else:
+                    self.buttonSurface.fill(self.fillColors['hover'], special_flags=pygame.BLEND_RGBA_SUB)
                     self.alreadyPressed = False
         else:
             self.buttonSurface.fill(self.fillColors['pressed'], special_flags=pygame.BLEND_RGBA_SUB)
@@ -423,8 +424,8 @@ class PlayerBullet(pygame.sprite.Sprite):
         self.range = bullet_range
         self.traveled = 0
         mouse_x, mouse_y = pygame.mouse.get_pos()
-        self.x = player.sprite.rect.centerx
-        self.y = player.sprite.rect.centery
+        self.x = player.sprite.rect.x
+        self.y = player.sprite.rect.y
         angle = math.atan2(self.y - mouse_y, self.x - mouse_x)
         self.x_vel = math.cos(angle) * bullet_speed
         self.y_vel = math.sin(angle) * bullet_speed
@@ -435,8 +436,8 @@ class PlayerBullet(pygame.sprite.Sprite):
         self.rect.y = self.y
 
     def move(self):
-        self.rect.x -= int(self.x_vel)
-        self.rect.y -= int(self.y_vel)
+        self.rect.x -= self.x_vel
+        self.rect.y -= self.y_vel
         self.traveled += self.distance
         if self.traveled >= self.range:
             self.kill()
@@ -585,15 +586,18 @@ class Player(pygame.sprite.Sprite):
             self.shoot()
 
     def shoot(self):
+        pygame.mixer.Sound.play(shoot_sound)
         bullets.add(PlayerBullet(self.curr_stats["Bullet damage"],
                                  self.curr_stats["Bullet speed"], self.curr_stats["Bullet range"]))
         self.shoot_cooldown_tracker = self.curr_stats["Shot speed"]
 
     def check_hit(self):
         if pygame.sprite.spritecollide(player.sprite, enemies, False) and not self.damage_cooldown_tracker:
+            pygame.mixer.Sound.play(player_got_hit_sound)
             self.damage_cooldown_tracker = self.damage_cooldown
             self.health -= 1
         if self.health <= 0:
+            pygame.mixer.Sound.play(game_over_sound)
             player_died(self.money)
 
     def check_drop(self):
@@ -602,14 +606,17 @@ class Player(pygame.sprite.Sprite):
                 drop.update()
             if self.rect.colliderect(drop.rect):
                 if drop.type == 'exp':
+                    pygame.mixer.Sound.play(pick_up_sound)
                     self.exp += drop.value
                 elif drop.type == 'money':
+                    pygame.mixer.Sound.play(pick_up_money_sound)
                     self.money += drop.value
                 drop.kill()
 
     def check_level_up(self):
         while self.exp >= self.max_exp:
             global level_up
+            pygame.mixer.Sound.play(level_up_sound)
             self.exp -= self.max_exp
             self.level += 1
             self.max_exp = self.level * 10
@@ -695,6 +702,7 @@ class Enemy(pygame.sprite.Sprite):
     def check_hit(self):
         for bullet in bullets:
             if self.rect.colliderect(bullet.rect):
+                pygame.mixer.Sound.play(enemy_got_hit_sound)
                 bullet.kill()
                 self.health -= bullet.damage
                 self.got_hit = 4
@@ -720,6 +728,23 @@ pygame.init()
 screen = pygame.display.set_mode((1920, 1080))
 pygame.display.set_caption('Computer survivors')
 clock = pygame.time.Clock()
+
+click_sound = pygame.mixer.Sound("audio/click.wav")
+click_sound.set_volume(0.2)
+enemy_got_hit_sound = pygame.mixer.Sound("audio/enemy_got_hit.wav")
+enemy_got_hit_sound.set_volume(0.05)
+game_over_sound = pygame.mixer.Sound("audio/game_over.wav")
+game_over_sound.set_volume(0.5)
+level_up_sound = pygame.mixer.Sound("audio/level_up.wav")
+level_up_sound.set_volume(0.3)
+pick_up_sound = pygame.mixer.Sound("audio/pick_up.wav")
+pick_up_sound.set_volume(0.05)
+pick_up_money_sound = pygame.mixer.Sound("audio/pick_up_money.wav")
+pick_up_money_sound.set_volume(0.2)
+player_got_hit_sound = pygame.mixer.Sound("audio/player_got_hit.wav")
+player_got_hit_sound.set_volume(0.25)
+shoot_sound = pygame.mixer.Sound("audio/shoot.wav")
+shoot_sound.set_volume(0.02)
 
 game_background = pygame.image.load('graphics/game_background.jpg').convert()
 main_menu_background = pygame.image.load('graphics/main_menu_background.jpg').convert()
@@ -882,7 +907,7 @@ pygame.time.set_timer(spawn_timer, 500)
 
 minutes, seconds = 0, 0
 game_active, game_pause, upgrade_shop, death_screen, level_up = False, False, False, False, False
-max_enemies = 20
+max_enemies = 0
 
 option1, option2, option3 = 0, 0, 0
 choose_options = True
