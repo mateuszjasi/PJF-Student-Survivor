@@ -249,9 +249,11 @@ def generate_upgrade_tiles():
 
 
 class Button:
-    def __init__(self, x, y, width, height, buttonText='Button', onclickFunction=None, arguments=None, active=True):
+    def __init__(self, x, y, width, height, buttonText='Button',
+                 onclickFunction=None, arguments=None, active=True, shop_button=False):
         self.x = x
         self.y = y
+        self.shop_button = shop_button
         self.width = width
         self.height = height
         self.onclickFunction = onclickFunction
@@ -272,7 +274,10 @@ class Button:
         self.alreadyPressed = False
 
     def process(self):
-        button_surf = button_font.render(self.buttonText, True, (255, 255, 255))
+        if self.shop_button:
+            button_surf = shop_button_font.render(self.buttonText, True, (255, 255, 255))
+        else:
+            button_surf = button_font.render(self.buttonText, True, (255, 255, 255))
         mouse_position = pygame.mouse.get_pos()
         self.buttonSurface = self.image.copy()
         if self.active:
@@ -319,7 +324,7 @@ class ShopTile:
                                  str((bought_upgrades[self.upgrade_name][0] + 1)
                                      * bought_upgrades[self.upgrade_name][3]), buy_upgrade, [self.upgrade_name],
                                  True if bought_upgrades[self.upgrade_name][0]
-                                         < bought_upgrades[self.upgrade_name][1] else False)
+                                         < bought_upgrades[self.upgrade_name][1] else False, True)
 
     def process(self):
         self.tileSurface = self.image.copy()
@@ -721,13 +726,14 @@ main_menu_background = pygame.image.load('graphics/main_menu_background.jpg').co
 shop_background = pygame.image.load('graphics/shop_background.jpg').convert()
 death_background = pygame.image.load('graphics/death_background.jpg').convert()
 
-button_font = pygame.font.Font(None, 40)
-shop_tile_name_font = pygame.font.Font(None, 40)
-shop_tile_text_font = pygame.font.Font(None, 30)
-upgrade_tile_name_font = pygame.font.Font(None, 40)
-upgrade_tile_text_font = pygame.font.Font(None, 30)
-progress_bar_font = pygame.font.Font(None, 50)
-in_game_money_font = pygame.font.Font(None, 40)
+button_font = pygame.font.Font("Retro Gaming.ttf", 35)
+shop_button_font = pygame.font.Font("Paskowy.ttf", 45)
+shop_tile_name_font = pygame.font.Font("Retro Gaming.ttf", 25)
+shop_tile_text_font = pygame.font.Font("Retro Gaming.ttf", 20)
+upgrade_tile_name_font = pygame.font.Font("Retro Gaming.ttf", 25)
+upgrade_tile_text_font = pygame.font.Font("Retro Gaming.ttf", 20)
+progress_bar_font = pygame.font.Font("Retro Gaming.ttf", 30)
+in_game_money_font = pygame.font.Font("Retro Gaming.ttf", 25)
 
 global_money = 0
 bought_upgrades = {
@@ -856,12 +862,12 @@ death_stats = {
     'boss': True
 }
 
-start_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 200, 200, 100, "Start", start_game)
-open_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 200, 80, "Upgrades", open_shop)
-close_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 400, 200, 100, "Return", close_shop)
-unpause_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 - 50, 200, 50, "Resume", unpause_game)
-end_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 200, 50, "End", end_game)
-death_screen_button = Button(screen.get_width() / 2, screen.get_height() / 2, 200, 50, "Back to menu", end_game)
+start_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 200, 300, 100, "Start", start_game)
+open_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 300, 100, "Upgrades", open_shop)
+close_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 400, 300, 100, "Return", close_shop)
+unpause_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 - 50, 250, 100, "Resume", unpause_game)
+end_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 250, 100, "End", end_game)
+death_screen_button = Button(screen.get_width() / 2, screen.get_height() / 2, 250, 100, "Menu", end_game)
 
 shop_tiles = []
 generate_shop_tiles()
@@ -909,6 +915,5 @@ while True:
         shop()
     else:
         main_menu()
-
     pygame.display.update()
     clock.tick(60)
