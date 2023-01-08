@@ -6,6 +6,38 @@ from sys import exit
 from random import randint
 
 
+def play_music(song):
+    pygame.mixer.music.unload()
+    pygame.mixer.music.load(song["name"])
+    pygame.mixer.music.set_volume(song["volume"])
+    pygame.mixer.music.play(-1)
+
+
+def fade_to(function):
+    global fading, fading_alpha, fading_in, fade_out_to
+    fading = True
+    fading_alpha = 0
+    fading_in = True
+    fade_out_to = function
+
+
+def fading_effect():
+    global fading, fading_in, fading_alpha, fade_out_to
+    alphaSurface.set_alpha(fading_alpha)
+    if not fading_in:
+        fade_out_to()
+    screen.blit(alphaSurface, (0, 0))
+    if fading_in:
+        fading_alpha += 5
+    else:
+        fading_alpha -= 5
+    if fading_alpha > 100:
+        fading_alpha = 100
+        fading_in = False
+    elif fading_alpha < 0:
+        fading = False
+
+
 def close_app():
     file = open("data.txt", "w")
     file.write(str(global_money) + '\n')
@@ -20,6 +52,7 @@ def main_menu():
     screen.blit(main_menu_background, (0, 0))
     start_game_button.process()
     open_shop_button.process()
+    close_up_button.process()
 
 
 def shop():
@@ -60,8 +93,16 @@ def pause_menu():
     end_game_button.process()
 
 
+def player_level_up():
+    global block_button, level_up
+    block_button = 60
+    level_up = True
+
+
 def level_up_menu():
-    global choose_options, option1, option2, option3
+    global choose_options, option1, option2, option3, block_button
+    if block_button > 0:
+        block_button -= 1
     if choose_options:
         option1, option2, option3 = random.sample(range(0, len(upgrade_tiles)), 3)
         choose_options = False
@@ -84,6 +125,8 @@ def end_game():
     player.remove()
     minutes, seconds = 0, 0
     game_active, game_pause, death_screen = False, False, False
+    play_music(main_menu_music)
+    fade_to(main_menu)
 
 
 def clock_update():
@@ -120,26 +163,33 @@ def start_game():
         taken_upgrades[i][0] = 0
     game_active = True
     player.add(Player(player_stats))
+    play_music(game_background_music)
+    fade_to(game_update)
 
 
 def open_shop():
     global upgrade_shop
     upgrade_shop = True
+    fade_to(shop)
 
 
 def close_shop():
     global upgrade_shop
     upgrade_shop = False
+    fade_to(main_menu)
 
 
 def pause_game():
     global game_pause
     game_pause = True
+    screen.fill((50, 50, 50), special_flags=pygame.BLEND_RGB_SUB)
+    pygame.mixer.music.pause()
 
 
 def unpause_game():
     global game_pause
     game_pause = False
+    pygame.mixer.music.unpause()
 
 
 def player_died(player_money):
@@ -147,6 +197,7 @@ def player_died(player_money):
     death_screen = True
     global_money += player_money
     screen.fill('darkgrey')
+    play_music(game_over_music)
 
 
 def spawn_enemy():
@@ -374,7 +425,7 @@ class UpgradeTile:
     def process(self, x, y):
         self.tileRect.center = (x, y)
         take_button = Button(self.tileRect.centerx, self.tileRect.bottom - 45, 150, 60,
-                                  "Take", take_upgrade, [self.upgrade_name])
+                                  "Take", take_upgrade, [self.upgrade_name], False if block_button else True)
         self.tileSurface.blit(self.tileName, [self.tileRect.width / 2 - self.tileName.get_rect().width / 2, 20])
         word_x, word_y = 15, 75
         word_height = 0
@@ -615,14 +666,13 @@ class Player(pygame.sprite.Sprite):
 
     def check_level_up(self):
         while self.exp >= self.max_exp:
-            global level_up
             pygame.mixer.Sound.play(level_up_sound)
             self.exp -= self.max_exp
             self.level += 1
             self.max_exp = self.level * 10
             if self.health < self.curr_stats["Health"]:
                 self.health += 1
-            level_up = True
+            player_level_up()
 
     def update_trackers(self):
         if self.shoot_cooldown_tracker < 1:
@@ -745,6 +795,21 @@ player_got_hit_sound = pygame.mixer.Sound("audio/player_got_hit.wav")
 player_got_hit_sound.set_volume(0.25)
 shoot_sound = pygame.mixer.Sound("audio/shoot.wav")
 shoot_sound.set_volume(0.02)
+
+main_menu_music = {
+    "name": "audio/main_menu_music.ogg",
+    "volume": 0.1
+}
+
+game_background_music = {
+    "name": "audio/game_background_music.ogg",
+    "volume": 0.05
+}
+
+game_over_music = {
+    "name": "audio/game_over_music.ogg",
+    "volume": 0.1
+}
 
 game_background = pygame.image.load('graphics/game_background.jpg').convert()
 main_menu_background = pygame.image.load('graphics/main_menu_background.jpg').convert()
@@ -887,11 +952,13 @@ death_stats = {
     'boss': True
 }
 
-start_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 200, 300, 100, "Start", start_game)
-open_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 300, 100, "Upgrades", open_shop)
+block_button = 0
+start_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 300, 100, "Start", start_game)
+open_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 300, 100, "Upgrades", open_shop)
+close_up_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 300, 100, "Exit", close_app)
 close_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 400, 300, 100, "Return", close_shop)
-unpause_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 - 50, 250, 100, "Resume", unpause_game)
-end_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 250, 100, "End", end_game)
+unpause_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 250, 100, "Resume", unpause_game)
+end_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 250, 100, "End", end_game)
 death_screen_button = Button(screen.get_width() / 2, screen.get_height() / 2, 250, 100, "Menu", end_game)
 
 shop_tiles = []
@@ -912,6 +979,16 @@ max_enemies = 0
 option1, option2, option3 = 0, 0, 0
 choose_options = True
 
+fading = False
+fading_in = False
+fade_out_to = main_menu
+fading_alpha = 0
+alphaSurface = pygame.surface.Surface((screen.get_width(), screen.get_height()))
+alphaSurface.fill((0, 0, 0))
+alphaSurface.set_alpha(fading_alpha)
+
+fade_to(main_menu)
+play_music(main_menu_music)
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -927,7 +1004,9 @@ while True:
                     seconds += 1
                 if event.type == spawn_timer and len(enemies) < max_enemies:
                     spawn_enemy()
-    if game_active:
+    if fading:
+        fading_effect()
+    elif game_active:
         if death_screen:
             death_screen_menu()
         elif game_pause:
