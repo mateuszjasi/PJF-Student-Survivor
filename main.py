@@ -51,17 +51,17 @@ def close_app():
 
 def main_menu():
     screen.blit(main_menu_background, (0, 0))
-    start_game_button.process()
-    open_shop_button.process()
-    close_up_button.process()
+    buttons["start_game"].process()
+    buttons["open_shop"].process()
+    buttons["close_up"].process()
 
 
 def shop():
     screen.blit(shop_background, (0, 0))
     for tile in range(0, len(shop_tiles)):
         shop_tiles[tile].process()
-    close_shop_button.process()
-    money_text = in_game_money_font.render("Money: " + str(global_money), True, (255, 255, 255))
+    buttons["close_shop"].process()
+    money_text = fonts["in_game_money"].render("Money: " + str(global_money), True, (255, 255, 255))
     money_rect = money_text.get_rect(bottomleft=(10, screen.get_height() - 10))
     screen.blit(money_text, money_rect)
 
@@ -90,8 +90,8 @@ def take_upgrade(arguments):
 
 
 def pause_menu():
-    unpause_game_button.process()
-    end_game_button.process()
+    buttons["unpause_game"].process()
+    buttons["end_game"].process()
 
 
 def player_level_up():
@@ -114,7 +114,7 @@ def level_up_menu():
 
 def death_screen_menu():
     screen.blit(death_background, (0, 0))
-    death_screen_button.process()
+    buttons["death_screen"].process()
 
 
 def end_game():
@@ -126,7 +126,7 @@ def end_game():
     player.remove()
     minutes, seconds = 0, 0
     game_active, game_pause, death_screen = False, False, False
-    play_music(main_menu_music, 3)
+    play_music(music["main_menu"], 3)
     fade_to(main_menu)
 
 
@@ -140,7 +140,7 @@ def clock_update():
     if minutes >= 10 and len(enemies) == 0:
         for i in range(0, max_enemies):
             enemies.add(Enemy(enemy_stats['death']))
-    time_label = progress_bar_font.render("{:02}:{:02}".format(minutes, seconds), True, 'white')
+    time_label = fonts["progress_bar"].render("{:02}:{:02}".format(minutes, seconds), True, 'white')
     time_label_rect = time_label.get_rect(center=(screen.get_width() / 2, 50))
     screen.blit(time_label, time_label_rect)
 
@@ -164,7 +164,7 @@ def start_game():
         taken_upgrades[i][0] = 0
     game_active = True
     player.add(Player(player_stats))
-    play_music(game_background_music)
+    play_music(music["game_background"])
     fade_to(game_update)
 
 
@@ -184,33 +184,33 @@ def pause_game():
     global game_pause
     game_pause = True
     screen.fill((50, 50, 50), special_flags=pygame.BLEND_RGB_SUB)
-    max_width = 0
-    for x, i in enumerate(player.sprite.curr_stats):
+    player_stats_text = "Player statistics: "
+    player_stats_label_text = fonts["progress_bar"].render(player_stats_text, True, 'white')
+    max_width = player_stats_label_text.get_width()
+    for i in player.sprite.curr_stats:
         player_stats_text = i + ": " + str(player.sprite.curr_stats[i] if i != "Fire rate"
                                            else round(1 / (player.sprite.curr_stats[i] / 60), 2))
-        player_stats_label_text = progress_bar_font.render(player_stats_text, True, 'white')
+        player_stats_label_text = fonts["pause_menu_player_stats"].render(player_stats_text, True, 'white')
         if max_width < player_stats_label_text.get_width():
             max_width = player_stats_label_text.get_width()
-    player_stats_text = "Player statistics: "
-    player_stats_label_text = progress_bar_font.render(player_stats_text, True, 'white')
-    if max_width < player_stats_label_text.get_width():
-        max_width = player_stats_label_text.get_width()
     player_stats_rect = pygame.rect.Rect(0, 0, max_width + 40,
-                                         20 + player_stats_label_text.get_height() * (
+                                         25 + player_stats_label_text.get_height() * (
                                                  len(player.sprite.curr_stats) + 2))
     player_stats_rect.topright = (screen.get_width() - 100, 50)
     player_stats_surface = pygame.transform.scale(pygame.image.load("graphics/tile.png").convert_alpha(),
                                                   (player_stats_rect.width, player_stats_rect.height))
+    player_stats_text = "Player statistics: "
+    player_stats_label_text = fonts["progress_bar"].render(player_stats_text, True, 'white')
     player_stats_label_text_rect = player_stats_label_text.get_rect(topleft=(20, 25))
     player_stats_surface.blit(player_stats_label_text, player_stats_label_text_rect)
     for x, i in enumerate(player.sprite.curr_stats):
         player_stats_text = i + ": " + str(player.sprite.curr_stats[i] if i != "Fire rate"
                                            else round(1 / (player.sprite.curr_stats[i] / 60), 2))
-        player_stats_label_text = progress_bar_font.render(player_stats_text, True, 'white')
+        player_stats_label_text = fonts["pause_menu_player_stats"].render(player_stats_text, True, 'white')
         if max_width < player_stats_label_text.get_width():
             max_width = player_stats_label_text.get_width()
         player_stats_label_text_rect = player_stats_label_text.get_rect(
-            topleft=(20, 30 + player_stats_label_text.get_height() * (x + 1)))
+            topleft=(20, 35 + player_stats_label_text.get_height() * (x + 1)))
         player_stats_surface.blit(player_stats_label_text, player_stats_label_text_rect)
     screen.blit(player_stats_surface, player_stats_rect)
     pygame.mixer.music.pause()
@@ -227,7 +227,7 @@ def player_died(player_money):
     death_screen = True
     global_money += player_money
     screen.fill('darkgrey')
-    play_music(game_over_music)
+    play_music(music["game_over"])
 
 
 def spawn_enemy():
@@ -356,9 +356,9 @@ class Button:
 
     def process(self):
         if self.shop_button:
-            button_surf = shop_button_font.render(self.buttonText, True, (255, 255, 255))
+            button_surf = fonts["shop_button"].render(self.buttonText, True, (255, 255, 255))
         else:
-            button_surf = button_font.render(self.buttonText, True, (255, 255, 255))
+            button_surf = fonts["button"].render(self.buttonText, True, (255, 255, 255))
         mouse_position = pygame.mouse.get_pos()
         self.buttonSurface = self.image.copy()
         if self.active:
@@ -378,7 +378,7 @@ class Button:
                     self.alreadyPressed = False
         else:
             self.buttonSurface.fill(self.fillColors['pressed'], special_flags=pygame.BLEND_RGBA_SUB)
-            button_surf = button_font.render(self.buttonText, True, (0, 0, 0))
+            button_surf = fonts["button"].render(self.buttonText, True, (0, 0, 0))
         self.buttonSurface.blit(button_surf, [
             self.buttonRect.width / 2 - button_surf.get_rect().width / 2,
             self.buttonRect.height / 2 - button_surf.get_rect().height / 2
@@ -397,7 +397,7 @@ class ShopTile:
                                             (self.width, self.height))
         self.tileSurface = self.image
         self.tileRect = pygame.Rect(self.x, self.y, self.width, self.height)
-        self.tileName = shop_tile_name_font.render(upgrade_name, True, (255, 255, 255))
+        self.tileName = fonts["shop_tile_name"].render(upgrade_name, True, (255, 255, 255))
         self.fillColors = {
             'normal': (0, 0, 0, 0),
             'fully_upgraded': (150, 150, 150, 0)
@@ -415,20 +415,20 @@ class ShopTile:
         else:
             self.tileSurface.fill(self.fillColors['fully_upgraded'], special_flags=pygame.BLEND_RGBA_SUB)
         self.tileSurface.blit(self.tileName, [self.tileRect.width / 2 - self.tileName.get_rect().width / 2, 15])
-        tile_lvl = shop_tile_name_font.render("Lvl " + str(bought_upgrades[self.upgrade_name][0]) + " / " +
+        tile_lvl = fonts["shop_tile_name"].render("Lvl " + str(bought_upgrades[self.upgrade_name][0]) + " / " +
                                                   str(bought_upgrades[self.upgrade_name][1]), True, (255, 255, 255))
         self.tileSurface.blit(tile_lvl, [self.tileRect.width / 2 - tile_lvl.get_rect().width / 2, 15 + self.tileName.get_height()])
         word_x, word_y = 15, 75
         word_height = 0
         for lines in [word.split(' ') for word in bought_upgrades[self.upgrade_name][2].splitlines()]:
             for words in lines:
-                word_surface = shop_tile_text_font.render(words, True, (255, 255, 255))
+                word_surface = fonts["shop_tile_text"].render(words, True, (255, 255, 255))
                 word_width, word_height = word_surface.get_size()
                 if word_x + word_width >= self.width - 5:
                     word_x = 15
                     word_y += word_height
                 self.tileSurface.blit(word_surface, (word_x, word_y))
-                word_x += word_width + shop_tile_text_font.size(' ')[0]
+                word_x += word_width + fonts["shop_tile_text"].size(' ')[0]
             word_x = 15
             word_y += word_height
         screen.blit(self.tileSurface, self.tileRect)
@@ -450,7 +450,7 @@ class UpgradeTile:
         self.tileSurface = pygame.transform.scale(pygame.image.load("graphics/tile.png").convert_alpha(),
                                                   (self.width, self.height))
         self.tileRect = pygame.Rect(0, 0, self.width, self.height)
-        self.tileName = upgrade_tile_name_font.render(upgrade_name, True, (255, 255, 255))
+        self.tileName = fonts["upgrade_tile_name"].render(upgrade_name, True, (255, 255, 255))
 
     def process(self, x, y):
         self.tileRect.center = (x, y)
@@ -461,13 +461,13 @@ class UpgradeTile:
         word_height = 0
         for lines in [word.split(' ') for word in taken_upgrades[self.upgrade_name][1].splitlines()]:
             for words in lines:
-                word_surface = upgrade_tile_text_font.render(words, True, (255, 255, 255))
+                word_surface = fonts["upgrade_tile_text"].render(words, True, (255, 255, 255))
                 word_width, word_height = word_surface.get_size()
                 if word_x + word_width >= self.width - 5:
                     word_x = 15
                     word_y += word_height
                 self.tileSurface.blit(word_surface, (word_x, word_y))
-                word_x += word_width + upgrade_tile_text_font.size(' ')[0]
+                word_x += word_width + fonts["upgrade_tile_text"].size(' ')[0]
             word_x = 15
             word_y += word_height
         screen.blit(self.tileSurface, self.tileRect)
@@ -586,7 +586,7 @@ class Player(pygame.sprite.Sprite):
         pygame.draw.rect(screen, (0, 0, 0), (10, 10, width + 10, height + 10), 5)
         health_bar = pygame.draw.rect(screen, (128, 128, 128), (15, 15, width, height))
         pygame.draw.rect(screen, (255, 0, 0), (15, 15, width * self.health / self.curr_stats["Health"], height))
-        health_text = progress_bar_font.render(str(self.health) + " / " + str(self.curr_stats["Health"]), True, (0, 0, 0))
+        health_text = fonts["progress_bar"].render(str(self.health) + " / " + str(self.curr_stats["Health"]), True, (0, 0, 0))
         health_text_rect = health_text.get_rect(center=health_bar.center)
         screen.blit(health_text, health_text_rect)
 
@@ -595,11 +595,11 @@ class Player(pygame.sprite.Sprite):
         exp_bar = pygame.draw.rect(screen, (128, 128, 128), (15, height + 30, width, height))
         green_bar = self.exp if self.max_exp >= self.exp else self.max_exp
         pygame.draw.rect(screen, (0, 255, 0), (15, height + 30, width * green_bar / self.max_exp, height))
-        exp_text = progress_bar_font.render("Lv: " + str(self.level), True, (0, 0, 0))
+        exp_text = fonts["progress_bar"].render("Lv: " + str(self.level), True, (0, 0, 0))
         exp_text_rect = exp_text.get_rect(center=exp_bar.center)
         screen.blit(exp_text, exp_text_rect)
 
-        money_text = in_game_money_font.render("Money: " + str(self.money), True, 'white')
+        money_text = fonts["in_game_money"].render("Money: " + str(self.money), True, 'white')
         money_rect = money_text.get_rect(topleft=(10, exp_bar.bottom + 20))
         screen.blit(money_text, money_rect)
 
@@ -844,37 +844,41 @@ pick_up_money_sound.set_volume(0.2)
 player_got_hit_sound = pygame.mixer.Sound("audio/player_got_hit.wav")
 player_got_hit_sound.set_volume(0.25)
 shoot_sound = pygame.mixer.Sound("audio/shoot.wav")
-shoot_sound.set_volume(0.02)
+shoot_sound.set_volume(0.03)
 
-main_menu_music = {
-    "name": "audio/main_menu_music.ogg",
-    "volume": 0.1
+music = {
+    "main_menu": {
+        "name": "audio/main_menu_music.ogg",
+        "volume": 0.1
+    },
+    "game_background": {
+        "name": "audio/game_background_music.ogg",
+        "volume": 0.05
+    },
+    "game_over": {
+        "name": "audio/game_over_music.ogg",
+        "volume": 0.1
+    },
 }
 
-game_background_music = {
-    "name": "audio/game_background_music.ogg",
-    "volume": 0.05
-}
-
-game_over_music = {
-    "name": "audio/game_over_music.ogg",
-    "volume": 0.1
-}
 
 game_background = pygame.image.load('graphics/game_background.jpg').convert()
 main_menu_background = pygame.image.load('graphics/main_menu_background.jpg').convert()
 shop_background = pygame.image.load('graphics/shop_background.jpg').convert()
 death_background = pygame.image.load('graphics/death_background.jpg').convert()
 
-button_font = pygame.font.Font("Retro Gaming.ttf", 35)
-shop_button_font = pygame.font.Font("Paskowy.ttf", 45)
-shop_tile_name_font = pygame.font.Font("Retro Gaming.ttf", 25)
-shop_tile_text_font = pygame.font.Font("Retro Gaming.ttf", 20)
-upgrade_tile_name_font = pygame.font.Font("Retro Gaming.ttf", 25)
-upgrade_tile_text_font = pygame.font.Font("Retro Gaming.ttf", 20)
-progress_bar_font = pygame.font.Font("Retro Gaming.ttf", 30)
-in_game_money_font = pygame.font.Font("Retro Gaming.ttf", 25)
-pause_menu_player_stats = pygame.font.Font("Retro Gaming.ttf", 15)
+fonts = {
+    "button": pygame.font.Font("Retro Gaming.ttf", 35),
+    "shop_button": pygame.font.Font("Paskowy.ttf", 45),
+    "shop_tile_name": pygame.font.Font("Retro Gaming.ttf", 25),
+    "shop_tile_text": pygame.font.Font("Retro Gaming.ttf", 20),
+    "upgrade_tile_name": pygame.font.Font("Retro Gaming.ttf", 25),
+    "upgrade_tile_text": pygame.font.Font("Retro Gaming.ttf", 20),
+    "progress_bar": pygame.font.Font("Retro Gaming.ttf", 30),
+    "in_game_money": pygame.font.Font("Retro Gaming.ttf", 25),
+    "pause_menu_player_stats": pygame.font.Font("Retro Gaming.ttf", 25)
+}
+
 
 global_money = 0
 bought_upgrades = {
@@ -912,27 +916,23 @@ enemies = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 drops = pygame.sprite.Group()
 
-player_stats = {
-    "Health": 3,
-    "Bullet damage": 2,
-    "Fire rate": 40,
-    "Bullet speed": 5,
-    "Bullet range": 250,
-    "Movement speed": 1,
-    "Pickup range": 50,
-}
+with open('player.json') as json_file:
+    player_stats = json.load(json_file)
 
 with open('enemies.json') as json_file:
     enemy_stats = json.load(json_file)
 
 block_button = 0
-start_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 300, 100, "Start", start_game)
-open_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 300, 100, "Upgrades", open_shop)
-close_up_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 300, 100, "Exit", close_app)
-close_shop_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 400, 300, 100, "Return", close_shop)
-unpause_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 250, 100, "Resume", unpause_game)
-end_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 250, 100, "End", end_game)
-death_screen_button = Button(screen.get_width() / 2, screen.get_height() / 2, 250, 100, "Menu", end_game)
+
+buttons = {
+    "start_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 300, 100, "Start", start_game),
+    "open_shop": Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 300, 100, "Upgrades", open_shop),
+    "close_up": Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 300, 100, "Exit", close_app),
+    "close_shop": Button(screen.get_width() / 2, screen.get_height() / 2 + 400, 300, 100, "Return", close_shop),
+    "unpause_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 250, 100, "Resume", unpause_game),
+    "end_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 250, 100, "End", end_game),
+    "death_screen": Button(screen.get_width() / 2, screen.get_height() / 2, 250, 100, "Menu", end_game)
+}
 
 shop_tiles = []
 generate_shop_tiles()
@@ -960,7 +960,7 @@ alphaSurface = pygame.surface.Surface((screen.get_width(), screen.get_height()))
 alphaSurface.fill((0, 0, 0))
 alphaSurface.set_alpha(fading_alpha)
 
-play_music(main_menu_music, 3)
+play_music(music["main_menu"], 3)
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
