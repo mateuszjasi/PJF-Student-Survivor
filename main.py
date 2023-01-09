@@ -2,15 +2,16 @@ import os
 import random
 import pygame
 import math
+import json
 from sys import exit
 from random import randint
 
 
-def play_music(song):
+def play_music(song, time=0):
     pygame.mixer.music.unload()
     pygame.mixer.music.load(song["name"])
     pygame.mixer.music.set_volume(song["volume"])
-    pygame.mixer.music.play(-1)
+    pygame.mixer.music.play(-1, time)
 
 
 def fade_to(function):
@@ -82,8 +83,8 @@ def take_upgrade(arguments):
         player.sprite.health += 1
     else:
         player.sprite.curr_stats[arguments[0]] = \
-            player.sprite.curr_stats[arguments[0]] + player.sprite.curr_stats[arguments[0]] \
-            * bought_upgrades[arguments[0]][0] * bought_upgrades[arguments[0]][4]
+            round(player.sprite.curr_stats[arguments[0]] + player.sprite.curr_stats[arguments[0]]
+                  * bought_upgrades[arguments[0]][0] * bought_upgrades[arguments[0]][4], 2)
     level_up = False
     choose_options = True
 
@@ -125,7 +126,7 @@ def end_game():
     player.remove()
     minutes, seconds = 0, 0
     game_active, game_pause, death_screen = False, False, False
-    play_music(main_menu_music)
+    play_music(main_menu_music, 3)
     fade_to(main_menu)
 
 
@@ -138,7 +139,7 @@ def clock_update():
             spawn_boss()
     if minutes >= 10 and len(enemies) == 0:
         for i in range(0, max_enemies):
-            enemies.add(Enemy(death_stats))
+            enemies.add(Enemy(enemy_stats['death']))
     time_label = progress_bar_font.render("{:02}:{:02}".format(minutes, seconds), True, 'white')
     time_label_rect = time_label.get_rect(center=(screen.get_width() / 2, 50))
     screen.blit(time_label, time_label_rect)
@@ -183,6 +184,33 @@ def pause_game():
     global game_pause
     game_pause = True
     screen.fill((50, 50, 50), special_flags=pygame.BLEND_RGB_SUB)
+    max_width = 0
+    for x, i in enumerate(player.sprite.curr_stats):
+        player_stats_text = i + ": " + str(player.sprite.curr_stats[i])
+        player_stats_label_text = progress_bar_font.render(player_stats_text, True, 'white')
+        if max_width < player_stats_label_text.get_width():
+            max_width = player_stats_label_text.get_width()
+    player_stats_text = "Player statistics: "
+    player_stats_label_text = progress_bar_font.render(player_stats_text, True, 'white')
+    if max_width < player_stats_label_text.get_width():
+        max_width = player_stats_label_text.get_width()
+    player_stats_rect = pygame.rect.Rect(0, 0, max_width + 40,
+                                         20 + player_stats_label_text.get_height() * (
+                                                 len(player.sprite.curr_stats) + 2))
+    player_stats_rect.topright = (screen.get_width() - 100, 50)
+    player_stats_surface = pygame.transform.scale(pygame.image.load("graphics/tile.png").convert_alpha(),
+                                                  (player_stats_rect.width, player_stats_rect.height))
+    player_stats_label_text_rect = player_stats_label_text.get_rect(topleft=(20, 25))
+    player_stats_surface.blit(player_stats_label_text, player_stats_label_text_rect)
+    for x, i in enumerate(player.sprite.curr_stats):
+        player_stats_text = i + ": " + str(player.sprite.curr_stats[i])
+        player_stats_label_text = progress_bar_font.render(player_stats_text, True, 'white')
+        if max_width < player_stats_label_text.get_width():
+            max_width = player_stats_label_text.get_width()
+        player_stats_label_text_rect = player_stats_label_text.get_rect(
+            topleft=(20, 30 + player_stats_label_text.get_height() * (x + 1)))
+        player_stats_surface.blit(player_stats_label_text, player_stats_label_text_rect)
+    screen.blit(player_stats_surface, player_stats_rect)
     pygame.mixer.music.pause()
 
 
@@ -203,81 +231,81 @@ def player_died(player_money):
 def spawn_enemy():
     enemy_chance = randint(1, 10)
     if minutes == 0:
-        enemies.add(Enemy(wisp_stats))
+        enemies.add(Enemy(enemy_stats["wisp"]))
     elif minutes == 1:
         if enemy_chance == 2:
-            enemies.add(Enemy(book_stats))
+            enemies.add(Enemy(enemy_stats["book"]))
         else:
-            enemies.add(Enemy(wisp_stats))
+            enemies.add(Enemy(enemy_stats["wisp"]))
     elif minutes == 2:
         if enemy_chance <= 6:
-            enemies.add(Enemy(book_stats))
+            enemies.add(Enemy(enemy_stats["book"]))
         else:
-            enemies.add(Enemy(wisp_stats))
+            enemies.add(Enemy(enemy_stats["wisp"]))
     elif minutes == 3:
         if enemy_chance == 2:
-            enemies.add(Enemy(bite_stats))
+            enemies.add(Enemy(enemy_stats["bite"]))
         elif enemy_chance <= 8:
-            enemies.add(Enemy(book_stats))
+            enemies.add(Enemy(enemy_stats["book"]))
         else:
-            enemies.add(Enemy(wisp_stats))
+            enemies.add(Enemy(enemy_stats["wisp"]))
     elif minutes == 4:
         if enemy_chance <= 5:
-            enemies.add(Enemy(bite_stats))
+            enemies.add(Enemy(enemy_stats["bite"]))
         else:
-            enemies.add(Enemy(book_stats))
+            enemies.add(Enemy(enemy_stats["book"]))
     elif minutes == 5:
         if enemy_chance <= 1:
-            enemies.add(Enemy(wisp_hard_stats))
+            enemies.add(Enemy(enemy_stats["wisp_hard"]))
         else:
-            enemies.add(Enemy(bite_stats))
+            enemies.add(Enemy(enemy_stats["bite"]))
     elif minutes == 6:
         if enemy_chance <= 8:
-            enemies.add(Enemy(wisp_hard_stats))
+            enemies.add(Enemy(enemy_stats["wisp_hard"]))
         else:
-            enemies.add(Enemy(wisp_stats))
+            enemies.add(Enemy(enemy_stats["wisp"]))
     elif minutes == 7:
         if enemy_chance <= 2:
-            enemies.add(Enemy(bite_hard_stats))
+            enemies.add(Enemy(enemy_stats["bite_hard"]))
         elif enemy_chance <= 8:
-            enemies.add(Enemy(wisp_hard_stats))
+            enemies.add(Enemy(enemy_stats["wisp_hard"]))
         else:
-            enemies.add(Enemy(book_stats))
+            enemies.add(Enemy(enemy_stats["book"]))
     elif minutes == 8:
         if enemy_chance == 1:
-            enemies.add(Enemy(shadow_stats))
+            enemies.add(Enemy("shadow"))
         elif enemy_chance <= 7:
-            enemies.add(Enemy(bite_hard_stats))
+            enemies.add(Enemy(enemy_stats["bite_hard"]))
         else:
-            enemies.add(Enemy(bite_stats))
+            enemies.add(Enemy(enemy_stats["bite"]))
     elif minutes == 9:
         if enemy_chance <= 3:
-            enemies.add(Enemy(shadow_hard_stats))
+            enemies.add(Enemy(enemy_stats["shadow_hard"]))
         else:
-            enemies.add(Enemy(golem_stats))
+            enemies.add(Enemy(enemy_stats["golem"]))
 
 
 def spawn_boss():
     global max_enemies
     if minutes == 2:
-        max_enemies = 25
-        enemies.add(Enemy(shadow_stats))
-    if minutes == 4:
         max_enemies = 30
-        enemies.add(Enemy(golem_stats))
-    if minutes == 6:
-        max_enemies = 35
-        enemies.add(Enemy(shadow_hard_stats))
-    if minutes == 8:
+        enemies.add(Enemy(enemy_stats["shadow_boss"]))
+    if minutes == 4:
         max_enemies = 40
-        enemies.add(Enemy(golem_stats))
-        enemies.add(Enemy(golem_stats))
-        enemies.add(Enemy(shadow_stats))
-        enemies.add(Enemy(shadow_stats))
-        enemies.add(Enemy(shadow_hard_stats))
+        enemies.add(Enemy(enemy_stats["golem_boss"]))
+    if minutes == 6:
+        max_enemies = 50
+        enemies.add(Enemy(enemy_stats["shadow_hard_boss"]))
+    if minutes == 8:
+        max_enemies = 60
+        enemies.add(Enemy(enemy_stats["golem_boss"]))
+        enemies.add(Enemy(enemy_stats["golem_boss"]))
+        enemies.add(Enemy(enemy_stats["shadow_boss"]))
+        enemies.add(Enemy(enemy_stats["shadow_boss"]))
+        enemies.add(Enemy(enemy_stats["shadow_hard_boss"]))
     if minutes == 10:
         enemies.empty()
-        enemies.add(Enemy(death_stats))
+        enemies.add(Enemy(enemy_stats["death"]))
 
 
 def generate_shop_tiles():
@@ -513,7 +541,8 @@ class Player(pygame.sprite.Sprite):
             if i == "Health":
                 self.curr_stats[i] = self.base_stats[i] + bought_upgrades[i][0] * bought_upgrades[i][4]
             else:
-                self.curr_stats[i] = self.base_stats[i] + self.base_stats[i] * bought_upgrades[i][0] * bought_upgrades[i][4]
+                self.curr_stats[i] = round(self.base_stats[i] + self.base_stats[i]
+                                           * bought_upgrades[i][0] * bought_upgrades[i][4], 2)
         self.health = self.curr_stats["Health"]
         self.level = 1
         self.max_exp = 10
@@ -653,7 +682,7 @@ class Player(pygame.sprite.Sprite):
 
     def check_drop(self):
         for drop in drops:
-            if math.hypot(self.rect.x - drop.rect.x, self.rect.y - drop.rect.y) < self.curr_stats["Pickup range"]:
+            if math.hypot(self.rect.x - drop.rect.x, self.rect.y - drop.rect.y) <= self.curr_stats["Pickup range"]:
                 drop.update()
             if self.rect.colliderect(drop.rect):
                 if drop.type == 'exp':
@@ -759,8 +788,8 @@ class Enemy(pygame.sprite.Sprite):
         if self.health <= 0:
             drops.add(Drop(self.rect.centerx, self.rect.centery, 'exp', self.value))
             if randint(0, 99) < 5 or self.boss:
-                drops.add(Drop(self.rect.centerx, self.rect.centery, 'money', randint(1, 10) * 15 if self.boss
-                               else randint(math.ceil(self.value / 2), self.value * 2)))
+                drops.add(Drop(self.rect.centerx, self.rect.centery, 'money',
+                               randint(math.ceil(self.value / 2), self.value * 2)))
             self.kill()
 
     def update_tracers(self):
@@ -824,6 +853,7 @@ upgrade_tile_name_font = pygame.font.Font("Retro Gaming.ttf", 25)
 upgrade_tile_text_font = pygame.font.Font("Retro Gaming.ttf", 20)
 progress_bar_font = pygame.font.Font("Retro Gaming.ttf", 30)
 in_game_money_font = pygame.font.Font("Retro Gaming.ttf", 25)
+pause_menu_player_stats = pygame.font.Font("Retro Gaming.ttf", 15)
 
 global_money = 0
 bought_upgrades = {
@@ -862,95 +892,17 @@ bullets = pygame.sprite.Group()
 drops = pygame.sprite.Group()
 
 player_stats = {
+    "Health": 3,
     "Bullet damage": 2,
     "Shot speed": 30,
     "Bullet speed": 5,
     "Bullet range": 250,
-    "Health": 3,
     "Movement speed": 1,
-    "Pickup range": 50
+    "Pickup range": 50,
 }
 
-wisp_stats = {
-    'enemy_type': 'wisp',
-    'health': 5,
-    'speed': 1,
-    'value': 1,
-    'color': (0, 0, 0, 0),
-    'boss': False
-}
-
-wisp_hard_stats = {
-    'enemy_type': 'wisp',
-    'health': 50,
-    'speed': 2,
-    'value': 20,
-    'color': (0, 0, 255, 0),
-    'boss': False
-}
-
-book_stats = {
-    'enemy_type': 'book',
-    'health': 20,
-    'speed': 1,
-    'value': 4,
-    'color': (0, 0, 0, 0),
-    'boss': False
-}
-
-bite_stats = {
-    'enemy_type': 'bite',
-    'health': 50,
-    'speed': 1,
-    'value': 10,
-    'color': (0, 0, 0, 0),
-    'boss': False
-}
-
-bite_hard_stats = {
-    'enemy_type': 'bite',
-    'health': 100,
-    'speed': 2,
-    'value': 40,
-    'color': (0, 60, 60, 0),
-    'boss': False
-}
-
-shadow_stats = {
-    'enemy_type': 'shadow',
-    'health': 100,
-    'speed': 3,
-    'value': 80,
-    'color': (0, 0, 0, 0),
-    'boss': True
-}
-
-shadow_hard_stats = {
-    'enemy_type': 'shadow',
-    'health': 300,
-    'speed': 3,
-    'value': 180,
-    'color': (63, 0, 0, 0),
-    'boss': True
-}
-
-golem_stats = {
-    'enemy_type': 'golem',
-    'health': 500,
-    'speed': 1,
-    'value': 100,
-    'color': (0, 0, 0, 0),
-    'boss': True
-}
-
-death_stats = {
-    'enemy_type': 'death',
-    'health': 999999,
-    'speed': 10,
-    'value': 0,
-    'color': (0, 0, 0, 0),
-    'boss': True
-}
+with open('enemies.json') as json_file:
+    enemy_stats = json.load(json_file)
 
 block_button = 0
 start_game_button = Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 300, 100, "Start", start_game)
@@ -979,16 +931,15 @@ max_enemies = 0
 option1, option2, option3 = 0, 0, 0
 choose_options = True
 
-fading = False
+fading = True
 fading_in = False
 fade_out_to = main_menu
-fading_alpha = 0
+fading_alpha = 100
 alphaSurface = pygame.surface.Surface((screen.get_width(), screen.get_height()))
 alphaSurface.fill((0, 0, 0))
 alphaSurface.set_alpha(fading_alpha)
 
-fade_to(main_menu)
-play_music(main_menu_music)
+play_music(main_menu_music, 3)
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
