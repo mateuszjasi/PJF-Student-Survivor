@@ -186,7 +186,8 @@ def pause_game():
     screen.fill((50, 50, 50), special_flags=pygame.BLEND_RGB_SUB)
     max_width = 0
     for x, i in enumerate(player.sprite.curr_stats):
-        player_stats_text = i + ": " + str(player.sprite.curr_stats[i])
+        player_stats_text = i + ": " + str(player.sprite.curr_stats[i] if i != "Fire rate"
+                                           else round(1 / (player.sprite.curr_stats[i] / 60), 2))
         player_stats_label_text = progress_bar_font.render(player_stats_text, True, 'white')
         if max_width < player_stats_label_text.get_width():
             max_width = player_stats_label_text.get_width()
@@ -203,7 +204,8 @@ def pause_game():
     player_stats_label_text_rect = player_stats_label_text.get_rect(topleft=(20, 25))
     player_stats_surface.blit(player_stats_label_text, player_stats_label_text_rect)
     for x, i in enumerate(player.sprite.curr_stats):
-        player_stats_text = i + ": " + str(player.sprite.curr_stats[i])
+        player_stats_text = i + ": " + str(player.sprite.curr_stats[i] if i != "Fire rate"
+                                           else round(1 / (player.sprite.curr_stats[i] / 60), 2))
         player_stats_label_text = progress_bar_font.render(player_stats_text, True, 'white')
         if max_width < player_stats_label_text.get_width():
             max_width = player_stats_label_text.get_width()
@@ -273,7 +275,7 @@ def spawn_enemy():
             enemies.add(Enemy(enemy_stats["book"]))
     elif minutes == 8:
         if enemy_chance == 1:
-            enemies.add(Enemy("shadow"))
+            enemies.add(Enemy(enemy_stats["shadow"]))
         elif enemy_chance <= 7:
             enemies.add(Enemy(enemy_stats["bite_hard"]))
         else:
@@ -477,10 +479,12 @@ class Drop(pygame.sprite.Sprite):
         super().__init__()
         self.value = value
         self.type = drop_type
+        scale = 1.0 + value / 200
         if self.type == 'exp':
             self.image = pygame.image.load("graphics/exp.png").convert_alpha()
         elif self.type == 'money':
             self.image = pygame.image.load("graphics/money.png").convert_alpha()
+        self.image = pygame.transform.scale_by(self.image, scale)
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
 
@@ -578,6 +582,7 @@ class Player(pygame.sprite.Sprite):
         width = 200
         height = 40
 
+        # Health bar
         pygame.draw.rect(screen, (0, 0, 0), (10, 10, width + 10, height + 10), 5)
         health_bar = pygame.draw.rect(screen, (128, 128, 128), (15, 15, width, height))
         pygame.draw.rect(screen, (255, 0, 0), (15, 15, width * self.health / self.curr_stats["Health"], height))
@@ -585,9 +590,11 @@ class Player(pygame.sprite.Sprite):
         health_text_rect = health_text.get_rect(center=health_bar.center)
         screen.blit(health_text, health_text_rect)
 
+        # Experience Bar
         pygame.draw.rect(screen, (0, 0, 0), (10, height + 25, width + 10, height + 10), 5)
         exp_bar = pygame.draw.rect(screen, (128, 128, 128), (15, height + 30, width, height))
-        pygame.draw.rect(screen, (0, 255, 0), (15, height + 30, width * self.exp / self.max_exp, height))
+        green_bar = self.exp if self.max_exp >= self.exp else self.max_exp
+        pygame.draw.rect(screen, (0, 255, 0), (15, height + 30, width * green_bar / self.max_exp, height))
         exp_text = progress_bar_font.render("Lv: " + str(self.level), True, (0, 0, 0))
         exp_text_rect = exp_text.get_rect(center=exp_bar.center)
         screen.blit(exp_text, exp_text_rect)
@@ -667,15 +674,16 @@ class Player(pygame.sprite.Sprite):
 
     def shoot(self):
         pygame.mixer.Sound.play(shoot_sound)
-        bullets.add(PlayerBullet(self.curr_stats["Bullet damage"],
-                                 self.curr_stats["Bullet speed"], self.curr_stats["Bullet range"]))
-        self.shoot_cooldown_tracker = self.curr_stats["Shot speed"]
+        bullets.add(PlayerBullet(self.curr_stats["Bullet damage"], self.curr_stats["Bullet speed"],
+                                 self.curr_stats["Bullet range"]))
+        self.shoot_cooldown_tracker = self.curr_stats["Fire rate"]
 
     def check_hit(self):
-        if pygame.sprite.spritecollide(player.sprite, enemies, False) and not self.damage_cooldown_tracker:
-            pygame.mixer.Sound.play(player_got_hit_sound)
-            self.damage_cooldown_tracker = self.damage_cooldown
-            self.health -= 1
+        for enemy in enemies:
+            if self.rect.colliderect(enemy.rect) and enemy.alive and not self.damage_cooldown_tracker:
+                pygame.mixer.Sound.play(player_got_hit_sound)
+                self.damage_cooldown_tracker = self.damage_cooldown
+                self.health -= 1
         if self.health <= 0:
             pygame.mixer.Sound.play(game_over_sound)
             player_died(self.money)
@@ -694,7 +702,7 @@ class Player(pygame.sprite.Sprite):
                 drop.kill()
 
     def check_level_up(self):
-        while self.exp >= self.max_exp:
+        if self.exp >= self.max_exp:
             pygame.mixer.Sound.play(level_up_sound)
             self.exp -= self.max_exp
             self.level += 1
@@ -730,6 +738,8 @@ class Enemy(pygame.sprite.Sprite):
         self.speed = stats['speed']
         self.value = stats['value']
         self.boss = stats['boss']
+        self.alive = True
+        self.alpha = 100
         self.got_hit = 0
         self.walking_animation = [pygame.image.load("graphics/" + self.type + "_0.png"),
                                   pygame.image.load("graphics/" + self.type + "_1.png"),
@@ -769,7 +779,7 @@ class Enemy(pygame.sprite.Sprite):
 
     def prevent_overlap(self):
         for enemy in enemies:
-            if self != enemy:
+            if self != enemy and enemy.alive:
                 if self.rect.colliderect(enemy.rect) and self.speed <= enemy.speed:
                     dx, dy = enemy.rect.centerx - self.rect.centerx, enemy.rect.centery - self.rect.centery
                     dist = math.hypot(dx, dy)
@@ -786,21 +796,32 @@ class Enemy(pygame.sprite.Sprite):
                 self.health -= bullet.damage
                 self.got_hit = 4
         if self.health <= 0:
-            drops.add(Drop(self.rect.centerx, self.rect.centery, 'exp', self.value))
+            drops.add(Drop(self.rect.x + randint(0, self.rect.width), self.rect.y + randint(0, self.rect.height),
+                           'exp', self.value))
             if randint(0, 99) < 5 or self.boss:
-                drops.add(Drop(self.rect.centerx, self.rect.centery, 'money',
-                               randint(math.ceil(self.value / 2), self.value * 2)))
-            self.kill()
+                drops.add(Drop(self.rect.x + randint(0, self.rect.width), self.rect.y + randint(0, self.rect.height),
+                               'money', randint(math.ceil(self.value / 2), self.value * 2)))
+            self.alive = False
 
     def update_tracers(self):
         if self.got_hit > 0:
             self.got_hit -= 1
 
+    def im_dying_help_me(self):
+        self.alpha -= 5
+        if self.alpha < 0:
+            self.kill()
+        else:
+            self.image.set_alpha(self.alpha)
+
     def update(self):
-        self.move_toward_player()
-        self.prevent_overlap()
-        self.check_hit()
-        self.update_tracers()
+        if self.alive:
+            self.move_toward_player()
+            self.prevent_overlap()
+            self.check_hit()
+            self.update_tracers()
+        else:
+            self.im_dying_help_me()
 
 
 pygame.init()
@@ -858,7 +879,7 @@ pause_menu_player_stats = pygame.font.Font("Retro Gaming.ttf", 15)
 global_money = 0
 bought_upgrades = {
     "Bullet damage": [0, 20, "Increases bullet damage by 5% per level", 300, 0.05],
-    "Shot speed": [0, 5, "Decreases shot speed cooldown by 5% per level", 1000, -0.05],
+    "Fire rate": [0, 5, "Increases rate of fire cooldown by 5% per level", 1000, -0.05],
     "Bullet speed": [0, 5, "Increases bullet speed by 10% per level", 200, 0.05],
     "Bullet range": [0, 10, "Increases bullet range by 5% per level", 350, 0.05],
     "Health": [0, 7, "Increases health by 1 per level", 3000, 1],
@@ -879,7 +900,7 @@ if os.path.exists("data.txt"):
 
 taken_upgrades = {
     "Bullet damage": [0, "Increases base bullet damage by 1 per level", 1],
-    "Shot speed": [0, "Decreases base shot speed cooldown by 1 per level", -1],
+    "Fire rate": [0, "Increases base rate of fire cooldown by 1 per level", -2],
     "Bullet speed": [0, "Increases base bullet speed by 1 per level", 1],
     "Bullet range": [0, "Increases base bullet range by 25 per level", 25],
     "Health": [0, "Increases health by 1 per level", 1],
@@ -894,7 +915,7 @@ drops = pygame.sprite.Group()
 player_stats = {
     "Health": 3,
     "Bullet damage": 2,
-    "Shot speed": 30,
+    "Fire rate": 40,
     "Bullet speed": 5,
     "Bullet range": 250,
     "Movement speed": 1,
@@ -949,7 +970,7 @@ while True:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     unpause_game()
             else:
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and not fading:
                     pause_game()
                 if event.type == clock_timer:
                     seconds += 1
