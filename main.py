@@ -95,6 +95,36 @@ def take_upgrade(arguments):
     choose_options = True
 
 
+def show_player_stats():
+    player_stats_text = "Player statistics: "
+    player_stats_label_text = fonts["progress_bar"].render(player_stats_text, True, 'white')
+    max_width = player_stats_label_text.get_width()
+    for i in player.sprite.curr_stats:
+        player_stats_text = i + ": " + str(player.sprite.curr_stats[i] if i != "Fire rate"
+                                           else round(1 / (player.sprite.curr_stats[i] / 60), 2))
+        player_stats_label_text = fonts["pause_menu_player_stats"].render(player_stats_text, True, 'white')
+        if max_width < player_stats_label_text.get_width():
+            max_width = player_stats_label_text.get_width()
+    player_stats_rect = pygame.rect.Rect(0, 0, max_width + 40,
+                                         25 + player_stats_label_text.get_height() * (
+                                                 len(player.sprite.curr_stats) + 2))
+    player_stats_rect.topright = (screen.get_width() - 100, 50)
+    player_stats_surface = pygame.transform.scale(pygame.image.load("graphics/tile.png").convert_alpha(),
+                                                  (player_stats_rect.width, player_stats_rect.height))
+    player_stats_text = "Player statistics: "
+    player_stats_label_text = fonts["progress_bar"].render(player_stats_text, True, 'white')
+    player_stats_label_text_rect = player_stats_label_text.get_rect(topleft=(20, 25))
+    player_stats_surface.blit(player_stats_label_text, player_stats_label_text_rect)
+    for x, i in enumerate(player.sprite.curr_stats):
+        player_stats_text = i + ": " + str(player.sprite.curr_stats[i] if i != "Fire rate"
+                                           else round(1 / (player.sprite.curr_stats[i] / 60), 2))
+        player_stats_label_text = fonts["pause_menu_player_stats"].render(player_stats_text, True, 'white')
+        player_stats_label_text_rect = player_stats_label_text.get_rect(
+            topleft=(20, 35 + player_stats_label_text.get_height() * (x + 1)))
+        player_stats_surface.blit(player_stats_label_text, player_stats_label_text_rect)
+    screen.blit(player_stats_surface, player_stats_rect)
+
+
 def pause_menu():
     buttons["unpause_game"].process()
     buttons["end_game"].process()
@@ -119,18 +149,15 @@ def level_up_menu():
 
 
 def death_screen_menu():
-    screen.blit(backgrounds["death_screen"], (0, 0))
     buttons["death_screen"].process()
 
 
 def end_game():
-    global global_money, game_active, game_pause, death_screen, minutes, seconds
+    global game_active, game_pause, death_screen
     enemies.empty()
     bullets.empty()
     drops.empty()
-    global_money += player.sprite.money
     player.remove()
-    minutes, seconds = 0, 0
     game_active, game_pause, death_screen = False, False, False
     play_music(music["main_menu"], 3)
     fade_to(main_menu)
@@ -158,14 +185,16 @@ def game_update():
     enemies.update()
     bullets.draw(screen)
     bullets.update()
+    clock_update()
     player.draw(screen)
     player.update()
-    clock_update()
 
 
 def start_game():
-    global game_active, max_enemies
+    global game_active, max_enemies, kill_count, minutes, seconds
     max_enemies = 20
+    kill_count = 0
+    minutes, seconds = 0, 0
     for i in taken_upgrades:
         taken_upgrades[i][0] = 0
     game_active = True
@@ -190,35 +219,7 @@ def pause_game():
     global game_pause
     game_pause = True
     screen.fill((50, 50, 50), special_flags=pygame.BLEND_RGB_SUB)
-    player_stats_text = "Player statistics: "
-    player_stats_label_text = fonts["progress_bar"].render(player_stats_text, True, 'white')
-    max_width = player_stats_label_text.get_width()
-    for i in player.sprite.curr_stats:
-        player_stats_text = i + ": " + str(player.sprite.curr_stats[i] if i != "Fire rate"
-                                           else round(1 / (player.sprite.curr_stats[i] / 60), 2))
-        player_stats_label_text = fonts["pause_menu_player_stats"].render(player_stats_text, True, 'white')
-        if max_width < player_stats_label_text.get_width():
-            max_width = player_stats_label_text.get_width()
-    player_stats_rect = pygame.rect.Rect(0, 0, max_width + 40,
-                                         25 + player_stats_label_text.get_height() * (
-                                                 len(player.sprite.curr_stats) + 2))
-    player_stats_rect.topright = (screen.get_width() - 100, 50)
-    player_stats_surface = pygame.transform.scale(pygame.image.load("graphics/tile.png").convert_alpha(),
-                                                  (player_stats_rect.width, player_stats_rect.height))
-    player_stats_text = "Player statistics: "
-    player_stats_label_text = fonts["progress_bar"].render(player_stats_text, True, 'white')
-    player_stats_label_text_rect = player_stats_label_text.get_rect(topleft=(20, 25))
-    player_stats_surface.blit(player_stats_label_text, player_stats_label_text_rect)
-    for x, i in enumerate(player.sprite.curr_stats):
-        player_stats_text = i + ": " + str(player.sprite.curr_stats[i] if i != "Fire rate"
-                                           else round(1 / (player.sprite.curr_stats[i] / 60), 2))
-        player_stats_label_text = fonts["pause_menu_player_stats"].render(player_stats_text, True, 'white')
-        if max_width < player_stats_label_text.get_width():
-            max_width = player_stats_label_text.get_width()
-        player_stats_label_text_rect = player_stats_label_text.get_rect(
-            topleft=(20, 35 + player_stats_label_text.get_height() * (x + 1)))
-        player_stats_surface.blit(player_stats_label_text, player_stats_label_text_rect)
-    screen.blit(player_stats_surface, player_stats_rect)
+    show_player_stats()
     pygame.mixer.music.pause()
 
 
@@ -228,12 +229,44 @@ def unpause_game():
     pygame.mixer.music.unpause()
 
 
-def player_died(player_money):
+def show_run_results(player_money, player_level):
+    run_results_rect = pygame.rect.Rect(0, 0, 375, 250)
+    run_results_rect.midtop = (screen.get_width() / 2, 50)
+
+    run_results_text = "Run results: "
+    run_results_label_text = fonts["progress_bar"].render(run_results_text, True, 'white')
+    run_results_surface = pygame.transform.scale(pygame.image.load("graphics/tile.png").convert_alpha(),
+                                                  (run_results_rect.width, run_results_rect.height))
+    run_results_text_rect = run_results_label_text.get_rect(topleft=(20, 25))
+    run_results_surface.blit(run_results_label_text, run_results_text_rect)
+
+    for i in range(1, 6):
+        if i == 1:
+            run_results_text = "Survived: " + "{:02}:{:02}".format(minutes, seconds)
+        elif i == 2:
+            run_results_text = "Level reached: " + str(player_level)
+        elif i == 3:
+            run_results_text = "Enemies killed: " + str(kill_count)
+        elif i == 4:
+            run_results_text = "Money gained: " + str(player_money)
+        elif i == 5:
+            run_results_text = "Better luck next time" if minutes < 10 else "Death was here"
+        run_results_label_text = fonts["pause_menu_player_stats"].render(
+            run_results_text, True, 'black' if i == 5 and minutes >= 10 else 'white')
+        run_results_text_rect = run_results_label_text.get_rect(topleft=(20, 35 + i * run_results_label_text.get_height()))
+        run_results_surface.blit(run_results_label_text, run_results_text_rect)
+
+    screen.blit(run_results_surface, run_results_rect)
+
+
+def player_died(player_money, player_level):
     global death_screen, global_money
     death_screen = True
     global_money += player_money
-    screen.fill('darkgrey')
     play_music(music["game_over"])
+    screen.blit(backgrounds["death_screen"], (0, 0))
+    show_player_stats()
+    show_run_results(player_money, player_level)
 
 
 def spawn_enemy():
@@ -692,7 +725,7 @@ class Player(pygame.sprite.Sprite):
                 self.health -= 1
         if self.health <= 0:
             play_sound("game_over")
-            player_died(self.money)
+            player_died(self.money, self.level)
 
     def check_drop(self):
         for drop in drops:
@@ -730,10 +763,10 @@ class Player(pygame.sprite.Sprite):
         self.player_input()
         self.walking()
         self.handle_weapon()
-        self.check_hit()
         self.check_drop()
         self.check_level_up()
         self.show_stats()
+        self.check_hit()
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -808,6 +841,8 @@ class Enemy(pygame.sprite.Sprite):
                 drops.add(Drop(self.rect.x + randint(0, self.rect.width), self.rect.y + randint(0, self.rect.height),
                                'money', randint(math.ceil(self.value / 2), self.value * 2)))
             self.alive = False
+            global kill_count
+            kill_count += 1
 
     def update_tracers(self):
         if self.got_hit > 0:
@@ -843,7 +878,7 @@ drops = pygame.sprite.Group()
 minutes, seconds = 0, 0
 game_active, game_pause, upgrade_shop, death_screen, level_up = False, False, False, False, False
 max_enemies = 0
-global_money = 0
+kill_count, global_money = 0, 0
 block_button = 0
 option1, option2, option3 = 0, 0, 0
 choose_options = True
@@ -877,23 +912,23 @@ with open('json/sounds.json') as json_file:
     sounds = json.load(json_file)
 with open('json/backgrounds.json') as json_file:
     backgrounds = json.load(json_file)
-for x in backgrounds:
-    backgrounds[x] = pygame.image.load(backgrounds[x]).convert()
+for temp in backgrounds:
+    backgrounds[temp] = pygame.image.load(backgrounds[temp]).convert()
 with open('json/fonts.json') as json_file:
     fonts = json.load(json_file)
-for x in fonts:
-    fonts[x] = pygame.font.Font(fonts[x][0], fonts[x][1])
+for temp in fonts:
+    fonts[temp] = pygame.font.Font(fonts[temp][0], fonts[temp][1])
 with open('json/bought_upgrades.json') as json_file:
     bought_upgrades = json.load(json_file)
 if os.path.exists("save.txt"):
     file_read = open("save.txt", 'r')
     global_money = int(file_read.readline())
-    for upgrade in bought_upgrades:
-        bought_upgrades[upgrade][0] = int(file_read.readline())
-        if bought_upgrades[upgrade][0] > bought_upgrades[upgrade][1]:
-            bought_upgrades[upgrade][0] = bought_upgrades[upgrade][1]
-        elif bought_upgrades[upgrade][0] < 0:
-            bought_upgrades[upgrade][0] = 0
+    for temp in bought_upgrades:
+        bought_upgrades[temp][0] = int(file_read.readline())
+        if bought_upgrades[temp][0] > bought_upgrades[temp][1]:
+            bought_upgrades[temp][0] = bought_upgrades[temp][1]
+        elif bought_upgrades[temp][0] < 0:
+            bought_upgrades[temp][0] = 0
     file_read.close()
 
 shop_tiles = []
@@ -917,7 +952,7 @@ while True:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     unpause_game()
             else:
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and not fading:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and not fading and not level_up:
                     pause_game()
                 if event.type == clock_timer:
                     seconds += 1
