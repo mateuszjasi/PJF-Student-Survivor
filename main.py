@@ -924,7 +924,9 @@ with open('enemies.json') as json_file:
 
 block_button = 0
 
-buttons = {
+with open('buttons.json') as json_file:
+    buttons = json.load(json_file)
+"""buttons = {
     "start_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 300, 100, "Start", start_game),
     "open_shop": Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 300, 100, "Upgrades", open_shop),
     "close_up": Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 300, 100, "Exit", close_app),
@@ -932,7 +934,7 @@ buttons = {
     "unpause_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 250, 100, "Resume", unpause_game),
     "end_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 250, 100, "End", end_game),
     "death_screen": Button(screen.get_width() / 2, screen.get_height() / 2, 250, 100, "Menu", end_game)
-}
+}"""
 
 shop_tiles = []
 generate_shop_tiles()
