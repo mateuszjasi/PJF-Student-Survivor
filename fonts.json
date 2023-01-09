@@ -1,9 +1,0 @@
-{"button": pygame.font.Font("Retro Gaming.ttf", 35),
-"shop_button": pygame.font.Font("Paskowy.ttf", 45),
-"shop_tile_name": pygame.font.Font("Retro Gaming.ttf", 25),
-"shop_tile_text": pygame.font.Font("Retro Gaming.ttf", 20),
-"upgrade_tile_name": pygame.font.Font("Retro Gaming.ttf", 25),
-"upgrade_tile_text": pygame.font.Font("Retro Gaming.ttf", 20),
-"progress_bar": pygame.font.Font("Retro Gaming.ttf", 30),
-"in_game_money": pygame.font.Font("Retro Gaming.ttf", 25),
-"pause_menu_player_stats": pygame.font.Font("Retro Gaming.ttf", 25)}

@@ -1,7 +1,0 @@
-{"start_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 300, 100, "Start", start_game),
-"open_shop": Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 300, 100, "Upgrades", open_shop),
-"close_up": Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 300, 100, "Exit", close_app),
-"close_shop": Button(screen.get_width() / 2, screen.get_height() / 2 + 400, 300, 100, "Return", close_shop),
-"unpause_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 250, 100, "Resume", unpause_game),
-"end_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 250, 100, "End", end_game),
-"death_screen": Button(screen.get_width() / 2, screen.get_height() / 2, 250, 100, "Menu", end_game)}

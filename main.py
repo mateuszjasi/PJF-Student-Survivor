@@ -50,14 +50,14 @@ def close_app():
 
 
 def main_menu():
-    screen.blit(main_menu_background, (0, 0))
+    screen.blit(backgrounds["main_menu"], (0, 0))
     buttons["start_game"].process()
     buttons["open_shop"].process()
     buttons["close_up"].process()
 
 
 def shop():
-    screen.blit(shop_background, (0, 0))
+    screen.blit(backgrounds["shop"], (0, 0))
     for tile in range(0, len(shop_tiles)):
         shop_tiles[tile].process()
     buttons["close_shop"].process()
@@ -113,7 +113,7 @@ def level_up_menu():
 
 
 def death_screen_menu():
-    screen.blit(death_background, (0, 0))
+    screen.blit(backgrounds["death_screen"], (0, 0))
     buttons["death_screen"].process()
 
 
@@ -146,7 +146,7 @@ def clock_update():
 
 
 def game_update():
-    screen.blit(game_background, (0, 0))
+    screen.blit(backgrounds["game"], (0, 0))
     drops.draw(screen)
     enemies.draw(screen)
     enemies.update()
@@ -829,6 +829,26 @@ screen = pygame.display.set_mode((1920, 1080))
 pygame.display.set_caption('Computer survivors')
 clock = pygame.time.Clock()
 
+player = pygame.sprite.GroupSingle()
+enemies = pygame.sprite.Group()
+bullets = pygame.sprite.Group()
+drops = pygame.sprite.Group()
+
+minutes, seconds = 0, 0
+game_active, game_pause, upgrade_shop, death_screen, level_up = False, False, False, False, False
+max_enemies = 0
+global_money = 0
+block_button = 0
+option1, option2, option3 = 0, 0, 0
+choose_options = True
+
+fading, fading_in = True, False
+fade_out_to = main_menu
+fading_alpha = 100
+alphaSurface = pygame.surface.Surface((screen.get_width(), screen.get_height()))
+alphaSurface.fill((0, 0, 0))
+alphaSurface.set_alpha(fading_alpha)
+
 click_sound = pygame.mixer.Sound("audio/click.wav")
 click_sound.set_volume(0.2)
 enemy_got_hit_sound = pygame.mixer.Sound("audio/enemy_got_hit.wav")
@@ -846,26 +866,12 @@ player_got_hit_sound.set_volume(0.25)
 shoot_sound = pygame.mixer.Sound("audio/shoot.wav")
 shoot_sound.set_volume(0.03)
 
-music = {
-    "main_menu": {
-        "name": "audio/main_menu_music.ogg",
-        "volume": 0.1
-    },
-    "game_background": {
-        "name": "audio/game_background_music.ogg",
-        "volume": 0.05
-    },
-    "game_over": {
-        "name": "audio/game_over_music.ogg",
-        "volume": 0.1
-    },
+backgrounds = {
+    "game": pygame.image.load('graphics/game_background.jpg').convert(),
+    "main_menu": pygame.image.load('graphics/main_menu_background.jpg').convert(),
+    "shop": pygame.image.load('graphics/shop_background.jpg').convert(),
+    "death_screen": pygame.image.load('graphics/death_background.jpg').convert()
 }
-
-
-game_background = pygame.image.load('graphics/game_background.jpg').convert()
-main_menu_background = pygame.image.load('graphics/main_menu_background.jpg').convert()
-shop_background = pygame.image.load('graphics/shop_background.jpg').convert()
-death_background = pygame.image.load('graphics/death_background.jpg').convert()
 
 fonts = {
     "button": pygame.font.Font("Retro Gaming.ttf", 35),
@@ -879,20 +885,29 @@ fonts = {
     "pause_menu_player_stats": pygame.font.Font("Retro Gaming.ttf", 25)
 }
 
-
-global_money = 0
-bought_upgrades = {
-    "Bullet damage": [0, 20, "Increases bullet damage by 5% per level", 300, 0.05],
-    "Fire rate": [0, 5, "Increases rate of fire cooldown by 5% per level", 1000, -0.05],
-    "Bullet speed": [0, 5, "Increases bullet speed by 10% per level", 200, 0.05],
-    "Bullet range": [0, 10, "Increases bullet range by 5% per level", 350, 0.05],
-    "Health": [0, 7, "Increases health by 1 per level", 3000, 1],
-    "Movement speed": [0, 2, "Increases movement speed by 1 per level", 5000, 1],
-    "Pickup range": [0, 10, "Increases pickup range by 10% per level", 250, 0.1]
+buttons = {
+    "start_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 300, 100, "Start", start_game),
+    "open_shop": Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 300, 100, "Upgrades", open_shop),
+    "close_up": Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 300, 100, "Exit", close_app),
+    "close_shop": Button(screen.get_width() / 2, screen.get_height() / 2 + 400, 300, 100, "Return", close_shop),
+    "unpause_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 250, 100, "Resume", unpause_game),
+    "end_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 250, 100, "End", end_game),
+    "death_screen": Button(screen.get_width() / 2, screen.get_height() / 2, 250, 100, "Menu", end_game)
 }
 
-if os.path.exists("data.txt"):
-    file_read = open("data.txt", 'r')
+with open('bought_upgrades.json') as json_file:
+    bought_upgrades = json.load(json_file)
+with open('taken_upgrades.json') as json_file:
+    taken_upgrades = json.load(json_file)
+with open('player.json') as json_file:
+    player_stats = json.load(json_file)
+with open('enemies.json') as json_file:
+    enemy_stats = json.load(json_file)
+with open('music.json') as json_file:
+    music = json.load(json_file)
+
+if os.path.exists("save.txt"):
+    file_read = open("save.txt", 'r')
     global_money = int(file_read.readline())
     for upgrade in bought_upgrades:
         bought_upgrades[upgrade][0] = int(file_read.readline())
@@ -901,40 +916,6 @@ if os.path.exists("data.txt"):
         elif bought_upgrades[upgrade][0] < 0:
             bought_upgrades[upgrade][0] = 0
     file_read.close()
-
-taken_upgrades = {
-    "Bullet damage": [0, "Increases base bullet damage by 1 per level", 1],
-    "Fire rate": [0, "Increases base rate of fire cooldown by 1 per level", -2],
-    "Bullet speed": [0, "Increases base bullet speed by 1 per level", 1],
-    "Bullet range": [0, "Increases base bullet range by 25 per level", 25],
-    "Health": [0, "Increases health by 1 per level", 1],
-    "Pickup range": [0, "Increases base pickup range by 25 per level", 25]
-}
-
-player = pygame.sprite.GroupSingle()
-enemies = pygame.sprite.Group()
-bullets = pygame.sprite.Group()
-drops = pygame.sprite.Group()
-
-with open('player.json') as json_file:
-    player_stats = json.load(json_file)
-
-with open('enemies.json') as json_file:
-    enemy_stats = json.load(json_file)
-
-block_button = 0
-
-with open('buttons.json') as json_file:
-    buttons = json.load(json_file)
-"""buttons = {
-    "start_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 300, 100, "Start", start_game),
-    "open_shop": Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 300, 100, "Upgrades", open_shop),
-    "close_up": Button(screen.get_width() / 2, screen.get_height() / 2 + 300, 300, 100, "Exit", close_app),
-    "close_shop": Button(screen.get_width() / 2, screen.get_height() / 2 + 400, 300, 100, "Return", close_shop),
-    "unpause_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 250, 100, "Resume", unpause_game),
-    "end_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 250, 100, "End", end_game),
-    "death_screen": Button(screen.get_width() / 2, screen.get_height() / 2, 250, 100, "Menu", end_game)
-}"""
 
 shop_tiles = []
 generate_shop_tiles()
@@ -946,21 +927,6 @@ pygame.time.set_timer(clock_timer, 1000)
 
 spawn_timer = pygame.USEREVENT + 2
 pygame.time.set_timer(spawn_timer, 500)
-
-minutes, seconds = 0, 0
-game_active, game_pause, upgrade_shop, death_screen, level_up = False, False, False, False, False
-max_enemies = 0
-
-option1, option2, option3 = 0, 0, 0
-choose_options = True
-
-fading = True
-fading_in = False
-fade_out_to = main_menu
-fading_alpha = 100
-alphaSurface = pygame.surface.Surface((screen.get_width(), screen.get_height()))
-alphaSurface.fill((0, 0, 0))
-alphaSurface.set_alpha(fading_alpha)
 
 play_music(music["main_menu"], 3)
 while True:
