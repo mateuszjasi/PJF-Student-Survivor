@@ -14,6 +14,12 @@ def play_music(song, time=0):
     pygame.mixer.music.play(-1, time)
 
 
+def play_sound(name):
+    sound = pygame.mixer.Sound(sounds[name]["name"])
+    sound.set_volume(sounds[name]["volume"])
+    pygame.mixer.Sound.play(sound)
+
+
 def fade_to(function):
     global fading, fading_alpha, fading_in, fade_out_to
     fading = True
@@ -40,7 +46,7 @@ def fading_effect():
 
 
 def close_app():
-    file = open("data.txt", "w")
+    file = open("save.txt", "w")
     file.write(str(global_money) + '\n')
     for i in bought_upgrades:
         file.write(str(bought_upgrades[i][0]) + '\n')
@@ -367,7 +373,7 @@ class Button:
                 if pygame.mouse.get_pressed()[0]:
                     self.buttonSurface.fill(self.fillColors['pressed'], special_flags=pygame.BLEND_RGBA_SUB)
                     if not self.alreadyPressed:
-                        pygame.mixer.Sound.play(click_sound)
+                        play_sound("click")
                         if self.arguments:
                             self.onclickFunction(self.arguments)
                         else:
@@ -673,7 +679,7 @@ class Player(pygame.sprite.Sprite):
             self.shoot()
 
     def shoot(self):
-        pygame.mixer.Sound.play(shoot_sound)
+        play_sound("shoot")
         bullets.add(PlayerBullet(self.curr_stats["Bullet damage"], self.curr_stats["Bullet speed"],
                                  self.curr_stats["Bullet range"]))
         self.shoot_cooldown_tracker = self.curr_stats["Fire rate"]
@@ -681,11 +687,11 @@ class Player(pygame.sprite.Sprite):
     def check_hit(self):
         for enemy in enemies:
             if self.rect.colliderect(enemy.rect) and enemy.alive and not self.damage_cooldown_tracker:
-                pygame.mixer.Sound.play(player_got_hit_sound)
+                play_sound("player_got_hit")
                 self.damage_cooldown_tracker = self.damage_cooldown
                 self.health -= 1
         if self.health <= 0:
-            pygame.mixer.Sound.play(game_over_sound)
+            play_sound("game_over")
             player_died(self.money)
 
     def check_drop(self):
@@ -694,16 +700,16 @@ class Player(pygame.sprite.Sprite):
                 drop.update()
             if self.rect.colliderect(drop.rect):
                 if drop.type == 'exp':
-                    pygame.mixer.Sound.play(pick_up_sound)
+                    play_sound("pick_up")
                     self.exp += drop.value
                 elif drop.type == 'money':
-                    pygame.mixer.Sound.play(pick_up_money_sound)
+                    play_sound("pick_up_money")
                     self.money += drop.value
                 drop.kill()
 
     def check_level_up(self):
         if self.exp >= self.max_exp:
-            pygame.mixer.Sound.play(level_up_sound)
+            play_sound("level_up")
             self.exp -= self.max_exp
             self.level += 1
             self.max_exp = self.level * 10
@@ -791,7 +797,7 @@ class Enemy(pygame.sprite.Sprite):
     def check_hit(self):
         for bullet in bullets:
             if self.rect.colliderect(bullet.rect):
-                pygame.mixer.Sound.play(enemy_got_hit_sound)
+                play_sound("enemy_got_hit")
                 bullet.kill()
                 self.health -= bullet.damage
                 self.got_hit = 4
@@ -849,42 +855,6 @@ alphaSurface = pygame.surface.Surface((screen.get_width(), screen.get_height()))
 alphaSurface.fill((0, 0, 0))
 alphaSurface.set_alpha(fading_alpha)
 
-click_sound = pygame.mixer.Sound("audio/click.wav")
-click_sound.set_volume(0.2)
-enemy_got_hit_sound = pygame.mixer.Sound("audio/enemy_got_hit.wav")
-enemy_got_hit_sound.set_volume(0.05)
-game_over_sound = pygame.mixer.Sound("audio/game_over.wav")
-game_over_sound.set_volume(0.5)
-level_up_sound = pygame.mixer.Sound("audio/level_up.wav")
-level_up_sound.set_volume(0.3)
-pick_up_sound = pygame.mixer.Sound("audio/pick_up.wav")
-pick_up_sound.set_volume(0.05)
-pick_up_money_sound = pygame.mixer.Sound("audio/pick_up_money.wav")
-pick_up_money_sound.set_volume(0.2)
-player_got_hit_sound = pygame.mixer.Sound("audio/player_got_hit.wav")
-player_got_hit_sound.set_volume(0.25)
-shoot_sound = pygame.mixer.Sound("audio/shoot.wav")
-shoot_sound.set_volume(0.03)
-
-backgrounds = {
-    "game": pygame.image.load('graphics/game_background.jpg').convert(),
-    "main_menu": pygame.image.load('graphics/main_menu_background.jpg').convert(),
-    "shop": pygame.image.load('graphics/shop_background.jpg').convert(),
-    "death_screen": pygame.image.load('graphics/death_background.jpg').convert()
-}
-
-fonts = {
-    "button": pygame.font.Font("Retro Gaming.ttf", 35),
-    "shop_button": pygame.font.Font("Paskowy.ttf", 45),
-    "shop_tile_name": pygame.font.Font("Retro Gaming.ttf", 25),
-    "shop_tile_text": pygame.font.Font("Retro Gaming.ttf", 20),
-    "upgrade_tile_name": pygame.font.Font("Retro Gaming.ttf", 25),
-    "upgrade_tile_text": pygame.font.Font("Retro Gaming.ttf", 20),
-    "progress_bar": pygame.font.Font("Retro Gaming.ttf", 30),
-    "in_game_money": pygame.font.Font("Retro Gaming.ttf", 25),
-    "pause_menu_player_stats": pygame.font.Font("Retro Gaming.ttf", 25)
-}
-
 buttons = {
     "start_game": Button(screen.get_width() / 2, screen.get_height() / 2 + 50, 300, 100, "Start", start_game),
     "open_shop": Button(screen.get_width() / 2, screen.get_height() / 2 + 175, 300, 100, "Upgrades", open_shop),
@@ -895,17 +865,26 @@ buttons = {
     "death_screen": Button(screen.get_width() / 2, screen.get_height() / 2, 250, 100, "Menu", end_game)
 }
 
-with open('bought_upgrades.json') as json_file:
-    bought_upgrades = json.load(json_file)
-with open('taken_upgrades.json') as json_file:
+with open('json/taken_upgrades.json') as json_file:
     taken_upgrades = json.load(json_file)
-with open('player.json') as json_file:
+with open('json/player.json') as json_file:
     player_stats = json.load(json_file)
-with open('enemies.json') as json_file:
+with open('json/enemies.json') as json_file:
     enemy_stats = json.load(json_file)
-with open('music.json') as json_file:
+with open('json/music.json') as json_file:
     music = json.load(json_file)
-
+with open('json/sounds.json') as json_file:
+    sounds = json.load(json_file)
+with open('json/backgrounds.json') as json_file:
+    backgrounds = json.load(json_file)
+for x in backgrounds:
+    backgrounds[x] = pygame.image.load(backgrounds[x]).convert()
+with open('json/fonts.json') as json_file:
+    fonts = json.load(json_file)
+for x in fonts:
+    fonts[x] = pygame.font.Font(fonts[x][0], fonts[x][1])
+with open('json/bought_upgrades.json') as json_file:
+    bought_upgrades = json.load(json_file)
 if os.path.exists("save.txt"):
     file_read = open("save.txt", 'r')
     global_money = int(file_read.readline())
