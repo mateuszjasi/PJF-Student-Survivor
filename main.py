@@ -93,6 +93,8 @@ def take_upgrade(arguments):
         player.sprite.curr_stats[arguments[0]] = \
             round(player.sprite.curr_stats[arguments[0]] + player.sprite.curr_stats[arguments[0]]
                   * bought_upgrades[arguments[0]][0] * bought_upgrades[arguments[0]][4], 2)
+    if arguments[0] == "Fire rate" and player.sprite.curr_stats[arguments[0]] < 10:
+        player.sprite.curr_stats[arguments[0]] = 10
     level_up = False
     choose_options = True
 
@@ -212,10 +214,10 @@ def main_menu():
     buttons["start_game"].process()
     buttons["open_shop"].process()
     buttons["close_up"].process()
-    title_text = fonts["main_menu_title"].render("College", True, (200, 0, 0))
+    title_text = fonts["main_menu_title"].render("Student", True, (200, 0, 0))
     title_rect = title_text.get_rect(midtop=(screen.get_width() / 2, 100))
     screen.blit(title_text, title_rect)
-    title_text = fonts["main_menu_title"].render("Survivors", True, (200, 0, 0))
+    title_text = fonts["main_menu_title"].render("Survivor", True, (200, 0, 0))
     title_rect = title_text.get_rect(midtop=(screen.get_width() / 2, 50 + title_text.get_height()))
     screen.blit(title_text, title_rect)
 
@@ -240,7 +242,10 @@ def level_up_menu():
     if block_button > 0:
         block_button -= 1
     if choose_options:
-        option1, option2, option3 = random.sample(range(0, len(upgrade_tiles)), 3)
+        if player.sprite.curr_stats["Fire rate"] == 10:
+            option1, option2, option3 = random.sample([i for i in range(0, len(upgrade_tiles)) if i != 1], 3)
+        else:
+            option1, option2, option3 = random.sample(range(0, len(upgrade_tiles)), 3)
         choose_options = False
     upgrade_tiles[option1].process(screen.get_width() / 2 - 350, screen.get_height() / 2)
     upgrade_tiles[option2].process(screen.get_width() / 2, screen.get_height() / 2)
@@ -305,55 +310,60 @@ def unpause_game():
 def spawn_enemy():
     enemy_chance = randint(1, 10)
     if minutes == 0:
-        enemies.add(Enemy(enemy_stats["wisp"]))
+        if enemy_chance <= 2:
+            enemies.add(Enemy(enemy_stats["book"]))
+        else:
+            enemies.add(Enemy(enemy_stats["wisp"]))
     elif minutes == 1:
-        if enemy_chance == 2:
-            enemies.add(Enemy(enemy_stats["book"]))
-        else:
-            enemies.add(Enemy(enemy_stats["wisp"]))
-    elif minutes == 2:
-        if enemy_chance <= 6:
-            enemies.add(Enemy(enemy_stats["book"]))
-        else:
-            enemies.add(Enemy(enemy_stats["wisp"]))
-    elif minutes == 3:
-        if enemy_chance == 2:
+        if enemy_chance == 1:
             enemies.add(Enemy(enemy_stats["bite"]))
-        elif enemy_chance <= 8:
-            enemies.add(Enemy(enemy_stats["book"]))
+        elif enemy_chance <= 3:
+            enemies.add(Enemy(enemy_stats["dog"]))
         else:
-            enemies.add(Enemy(enemy_stats["wisp"]))
+            enemies.add(Enemy(enemy_stats["book"]))
+    elif minutes == 2:
+        if enemy_chance <= 3:
+            enemies.add(Enemy(enemy_stats["dog"]))
+        else:
+            enemies.add(Enemy(enemy_stats["bite"]))
+    elif minutes == 3:
+        if enemy_chance == 1:
+            enemies.add(Enemy(enemy_stats["wisp_hard"]))
+        elif enemy_chance <= 3:
+            enemies.add(Enemy(enemy_stats["zombie"]))
+        else:
+            enemies.add(Enemy(enemy_stats["dog"]))
     elif minutes == 4:
         if enemy_chance <= 5:
-            enemies.add(Enemy(enemy_stats["bite"]))
+            enemies.add(Enemy(enemy_stats["zombie"]))
         else:
-            enemies.add(Enemy(enemy_stats["book"]))
+            enemies.add(Enemy(enemy_stats["wisp_hard"]))
     elif minutes == 5:
-        if enemy_chance <= 1:
-            enemies.add(Enemy(enemy_stats["wisp_hard"]))
-        else:
-            enemies.add(Enemy(enemy_stats["bite"]))
-    elif minutes == 6:
-        if enemy_chance <= 8:
-            enemies.add(Enemy(enemy_stats["wisp_hard"]))
-        else:
-            enemies.add(Enemy(enemy_stats["wisp"]))
-    elif minutes == 7:
         if enemy_chance <= 2:
             enemies.add(Enemy(enemy_stats["bite_hard"]))
-        elif enemy_chance <= 8:
-            enemies.add(Enemy(enemy_stats["wisp_hard"]))
         else:
-            enemies.add(Enemy(enemy_stats["book"]))
-    elif minutes == 8:
+            enemies.add(Enemy(enemy_stats["wisp_hard"]))
+    elif minutes == 6:
+        if enemy_chance <= 3:
+            enemies.add(Enemy(enemy_stats["zombie"]))
+        else:
+            enemies.add(Enemy(enemy_stats["bite_hard"]))
+    elif minutes == 7:
         if enemy_chance == 1:
             enemies.add(Enemy(enemy_stats["shadow"]))
-        elif enemy_chance <= 7:
-            enemies.add(Enemy(enemy_stats["bite_hard"]))
+        elif enemy_chance <= 4:
+            enemies.add(Enemy(enemy_stats["ghoul"]))
         else:
-            enemies.add(Enemy(enemy_stats["bite"]))
+            enemies.add(Enemy(enemy_stats["bite_hard"]))
+    elif minutes == 8:
+        if enemy_chance <= 2:
+            enemies.add(Enemy(enemy_stats["shadow"]))
+        else:
+            enemies.add(Enemy(enemy_stats["ghoul"]))
     elif minutes == 9:
-        if enemy_chance <= 3:
+        if enemy_chance <= 1:
+            enemies.add(Enemy(enemy_stats["kidnapper"]))
+        elif enemy_chance <= 4:
             enemies.add(Enemy(enemy_stats["shadow_hard"]))
         else:
             enemies.add(Enemy(enemy_stats["golem"]))
@@ -372,11 +382,7 @@ def spawn_boss():
         enemies.add(Enemy(enemy_stats["shadow_hard_boss"]))
     if minutes == 8:
         max_enemies = 60
-        enemies.add(Enemy(enemy_stats["golem_boss"]))
-        enemies.add(Enemy(enemy_stats["golem_boss"]))
-        enemies.add(Enemy(enemy_stats["shadow_boss"]))
-        enemies.add(Enemy(enemy_stats["shadow_boss"]))
-        enemies.add(Enemy(enemy_stats["shadow_hard_boss"]))
+        enemies.add(Enemy(enemy_stats["kidnapper_boss"]))
     if minutes == 10:
         enemies.empty()
         enemies.add(Enemy(enemy_stats["death"]))
@@ -798,10 +804,9 @@ class Enemy(pygame.sprite.Sprite):
                                   pygame.image.load("graphics/" + self.type + "_1.png"),
                                   pygame.image.load("graphics/" + self.type + "_2.png"),
                                   pygame.image.load("graphics/" + self.type + "_3.png")]
-        if self.boss:
-            for i in range(4):
-                self.walking_animation[i] = pygame.transform.scale_by(self.walking_animation[i], 1.5)
         for i in range(4):
+            if self.boss:
+                self.walking_animation[i] = pygame.transform.scale_by(self.walking_animation[i], 1.5)
             self.walking_animation[i].fill(stats['color'], special_flags=pygame.BLEND_RGBA_ADD)
         self.image = self.walking_animation[0]
         self.animation_count = 0
@@ -881,7 +886,7 @@ class Enemy(pygame.sprite.Sprite):
 
 pygame.init()
 screen = pygame.display.set_mode((1920, 1080))
-pygame.display.set_caption('College Survivors')
+pygame.display.set_caption('Student Survivor')
 clock = pygame.time.Clock()
 
 player = pygame.sprite.GroupSingle()

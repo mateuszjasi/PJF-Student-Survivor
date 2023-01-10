@@ -1,7 +1,7 @@
 {"Health": 3,
-  "Bullet damage": 2,
-  "Fire rate": 40,
+  "Bullet damage": 3.5,
+  "Fire rate": 50,
   "Bullet speed": 5,
-  "Bullet range": 250,
+  "Bullet range": 160,
   "Movement speed": 1,
-  "Pickup range": 50}
+  "Pickup range": 40}
