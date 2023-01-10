@@ -9,11 +9,10 @@ Roguelike game inspired by Vampires Survivors, created using Python programing l
 - Time progressing difficulty
 - Level up system
 - Upgrade shop
-- Depression
 - Animated sprites
 - Full sound design of game elements
 
-$$ Game screenshots
+## Game screenshots
 ![image](https://user-images.githubusercontent.com/54881442/211599261-4c43da0e-c28e-4525-a272-f2c0b2435fee.png)
 ![image](https://user-images.githubusercontent.com/54881442/211599389-19fa2f0e-f8c4-452d-9158-1c2e9087aff1.png)
 ![image](https://user-images.githubusercontent.com/54881442/211599548-3088af35-b58b-411c-a5c0-375172821663.png)
