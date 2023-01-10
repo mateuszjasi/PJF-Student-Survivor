@@ -6,6 +6,7 @@ Roguelike game inspired by Vampires Survivors, created using Python programing l
 
 ## Features:
 - Many different enemies
+- Time progressing difficulty
 - Level up system
 - Upgrade shop
 - Depression
