@@ -885,6 +885,7 @@ class Enemy(pygame.sprite.Sprite):
 
 
 pygame.init()
+pygame.mixer.set_num_channels(64)
 screen = pygame.display.set_mode((1920, 1080))
 pygame.display.set_caption('Student Survivor')
 clock = pygame.time.Clock()
