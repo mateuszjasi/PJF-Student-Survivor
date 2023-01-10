@@ -20,6 +20,25 @@ def play_sound(name):
     pygame.mixer.Sound.play(sound)
 
 
+def generate_shop_tiles():
+    global shop_tiles
+    height, width = 300, 300
+    x, y = 30, 20
+    for i in bought_upgrades:
+        shop_tiles.append(ShopTile(x, y, width, height, i))
+        x += width + 10
+        if x + width + 10 >= screen.get_width():
+            x = 30
+            y += height + 20
+
+
+def generate_upgrade_tiles():
+    global upgrade_tiles
+    height, width = 300, 300
+    for i in taken_upgrades:
+        upgrade_tiles.append(UpgradeTile(width, height, i))
+
+
 def fade_to(function):
     global fading, fading_alpha, fading_in, fade_out_to
     fading = True
@@ -53,23 +72,6 @@ def close_app():
     file.close()
     pygame.quit()
     exit()
-
-
-def main_menu():
-    screen.blit(backgrounds["main_menu"], (0, 0))
-    buttons["start_game"].process()
-    buttons["open_shop"].process()
-    buttons["close_up"].process()
-
-
-def shop():
-    screen.blit(backgrounds["shop"], (0, 0))
-    for tile in range(0, len(shop_tiles)):
-        shop_tiles[tile].process()
-    buttons["close_shop"].process()
-    money_text = fonts["in_game_money"].render("Money: " + str(global_money), True, (255, 255, 255))
-    money_rect = money_text.get_rect(bottomleft=(10, screen.get_height() - 10))
-    screen.blit(money_text, money_rect)
 
 
 def buy_upgrade(arguments):
@@ -122,18 +124,115 @@ def show_player_stats():
         player_stats_label_text_rect = player_stats_label_text.get_rect(
             topleft=(20, 35 + player_stats_label_text.get_height() * (x + 1)))
         player_stats_surface.blit(player_stats_label_text, player_stats_label_text_rect)
+
     screen.blit(player_stats_surface, player_stats_rect)
 
 
-def pause_menu():
-    buttons["unpause_game"].process()
-    buttons["end_game"].process()
+def show_run_results(player_money, player_level):
+    run_results_rect = pygame.rect.Rect(0, 0, 375, 250)
+    run_results_rect.midtop = (screen.get_width() / 2, 50)
+
+    run_results_text = "Run results: "
+    run_results_label_text = fonts["progress_bar"].render(run_results_text, True, 'white')
+    run_results_surface = pygame.transform.scale(pygame.image.load("graphics/tile.png").convert_alpha(),
+                                                  (run_results_rect.width, run_results_rect.height))
+    run_results_text_rect = run_results_label_text.get_rect(topleft=(20, 25))
+    run_results_surface.blit(run_results_label_text, run_results_text_rect)
+
+    for i in range(1, 6):
+        if i == 1:
+            run_results_text = "Survived: " + "{:02}:{:02}".format(minutes, seconds)
+        elif i == 2:
+            run_results_text = "Level reached: " + str(player_level)
+        elif i == 3:
+            run_results_text = "Enemies killed: " + str(kill_count)
+        elif i == 4:
+            run_results_text = "Money gained: " + str(player_money)
+        elif i == 5:
+            run_results_text = "Better luck next time" if minutes < 10 else "Death was here"
+        run_results_label_text = fonts["pause_menu_player_stats"].render(
+            run_results_text, True, 'black' if i == 5 and minutes >= 10 else 'white')
+        run_results_text_rect = run_results_label_text.get_rect(topleft=(20, 35 + i * run_results_label_text.get_height()))
+        run_results_surface.blit(run_results_label_text, run_results_text_rect)
+
+    screen.blit(run_results_surface, run_results_rect)
+
+
+def show_grave(xy):
+    grave = pygame.image.load("graphics/grave.png")
+    grave_rect = grave.get_rect(center=xy)
+    screen.blit(grave, grave_rect)
 
 
 def player_level_up():
     global block_button, level_up
     block_button = 60
     level_up = True
+
+
+def clock_update():
+    global minutes, seconds
+    if seconds >= 60:
+        minutes += 1
+        seconds = 0
+        if minutes % 2 == 0:
+            spawn_boss()
+    if minutes >= 10 and len(enemies) == 0:
+        for i in range(0, max_enemies):
+            enemies.add(Enemy(enemy_stats['death']))
+    time_label = fonts["progress_bar"].render("{:02}:{:02}".format(minutes, seconds), True, 'white')
+    time_label_rect = time_label.get_rect(center=(screen.get_width() / 2, 50))
+    screen.blit(time_label, time_label_rect)
+
+
+def player_died(player_money, player_level, xy):
+    global death_screen, global_money
+    death_screen = True
+    global_money += player_money
+    play_music(music["game_over"])
+    screen.blit(backgrounds["death_screen"], (0, 0))
+    show_grave(xy)
+    show_player_stats()
+    show_run_results(player_money, player_level)
+
+
+def end_game():
+    global game_active, game_pause, death_screen
+    enemies.empty()
+    bullets.empty()
+    drops.empty()
+    player.remove()
+    game_active, game_pause, death_screen = False, False, False
+    play_music(music["main_menu"], 3)
+    fade_to(main_menu)
+
+
+def main_menu():
+    screen.blit(backgrounds["main_menu"], (0, 0))
+    buttons["start_game"].process()
+    buttons["open_shop"].process()
+    buttons["close_up"].process()
+    title_text = fonts["main_menu_title"].render("College", True, (200, 0, 0))
+    title_rect = title_text.get_rect(midtop=(screen.get_width() / 2, 100))
+    screen.blit(title_text, title_rect)
+    title_text = fonts["main_menu_title"].render("Survivors", True, (200, 0, 0))
+    title_rect = title_text.get_rect(midtop=(screen.get_width() / 2, 50 + title_text.get_height()))
+    screen.blit(title_text, title_rect)
+
+
+def shop():
+    screen.blit(backgrounds["shop"], (0, 0))
+    for tile in range(0, len(shop_tiles)):
+        shop_tiles[tile].process()
+    buttons["close_shop"].process()
+    money_text = fonts["in_game_money"].render("Money: " + str(global_money), True, (255, 255, 255))
+    money_rect = money_text.get_rect(bottomleft=(10, screen.get_height() - 10))
+    screen.blit(money_text, money_rect)
+
+
+def pause_menu():
+    buttons["unpause_game"].process()
+    buttons["end_game"].process()
 
 
 def level_up_menu():
@@ -150,32 +249,6 @@ def level_up_menu():
 
 def death_screen_menu():
     buttons["death_screen"].process()
-
-
-def end_game():
-    global game_active, game_pause, death_screen
-    enemies.empty()
-    bullets.empty()
-    drops.empty()
-    player.remove()
-    game_active, game_pause, death_screen = False, False, False
-    play_music(music["main_menu"], 3)
-    fade_to(main_menu)
-
-
-def clock_update():
-    global minutes, seconds
-    if seconds >= 60:
-        minutes += 1
-        seconds = 0
-        if minutes % 2 == 0:
-            spawn_boss()
-    if minutes >= 10 and len(enemies) == 0:
-        for i in range(0, max_enemies):
-            enemies.add(Enemy(enemy_stats['death']))
-    time_label = fonts["progress_bar"].render("{:02}:{:02}".format(minutes, seconds), True, 'white')
-    time_label_rect = time_label.get_rect(center=(screen.get_width() / 2, 50))
-    screen.blit(time_label, time_label_rect)
 
 
 def game_update():
@@ -227,46 +300,6 @@ def unpause_game():
     global game_pause
     game_pause = False
     pygame.mixer.music.unpause()
-
-
-def show_run_results(player_money, player_level):
-    run_results_rect = pygame.rect.Rect(0, 0, 375, 250)
-    run_results_rect.midtop = (screen.get_width() / 2, 50)
-
-    run_results_text = "Run results: "
-    run_results_label_text = fonts["progress_bar"].render(run_results_text, True, 'white')
-    run_results_surface = pygame.transform.scale(pygame.image.load("graphics/tile.png").convert_alpha(),
-                                                  (run_results_rect.width, run_results_rect.height))
-    run_results_text_rect = run_results_label_text.get_rect(topleft=(20, 25))
-    run_results_surface.blit(run_results_label_text, run_results_text_rect)
-
-    for i in range(1, 6):
-        if i == 1:
-            run_results_text = "Survived: " + "{:02}:{:02}".format(minutes, seconds)
-        elif i == 2:
-            run_results_text = "Level reached: " + str(player_level)
-        elif i == 3:
-            run_results_text = "Enemies killed: " + str(kill_count)
-        elif i == 4:
-            run_results_text = "Money gained: " + str(player_money)
-        elif i == 5:
-            run_results_text = "Better luck next time" if minutes < 10 else "Death was here"
-        run_results_label_text = fonts["pause_menu_player_stats"].render(
-            run_results_text, True, 'black' if i == 5 and minutes >= 10 else 'white')
-        run_results_text_rect = run_results_label_text.get_rect(topleft=(20, 35 + i * run_results_label_text.get_height()))
-        run_results_surface.blit(run_results_label_text, run_results_text_rect)
-
-    screen.blit(run_results_surface, run_results_rect)
-
-
-def player_died(player_money, player_level):
-    global death_screen, global_money
-    death_screen = True
-    global_money += player_money
-    play_music(music["game_over"])
-    screen.blit(backgrounds["death_screen"], (0, 0))
-    show_player_stats()
-    show_run_results(player_money, player_level)
 
 
 def spawn_enemy():
@@ -347,25 +380,6 @@ def spawn_boss():
     if minutes == 10:
         enemies.empty()
         enemies.add(Enemy(enemy_stats["death"]))
-
-
-def generate_shop_tiles():
-    global shop_tiles
-    height, width = 300, 300
-    x, y = 30, 20
-    for i in bought_upgrades:
-        shop_tiles.append(ShopTile(x, y, width, height, i))
-        x += width + 10
-        if x + width + 10 >= screen.get_width():
-            x = 30
-            y += height + 20
-
-
-def generate_upgrade_tiles():
-    global upgrade_tiles
-    height, width = 300, 300
-    for i in taken_upgrades:
-        upgrade_tiles.append(UpgradeTile(width, height, i))
 
 
 class Button:
@@ -725,7 +739,7 @@ class Player(pygame.sprite.Sprite):
                 self.health -= 1
         if self.health <= 0:
             play_sound("game_over")
-            player_died(self.money, self.level)
+            player_died(self.money, self.level, (self.rect.centerx, self.rect.centery))
 
     def check_drop(self):
         for drop in drops:
@@ -867,7 +881,7 @@ class Enemy(pygame.sprite.Sprite):
 
 pygame.init()
 screen = pygame.display.set_mode((1920, 1080))
-pygame.display.set_caption('Computer survivors')
+pygame.display.set_caption('College Survivors')
 clock = pygame.time.Clock()
 
 player = pygame.sprite.GroupSingle()

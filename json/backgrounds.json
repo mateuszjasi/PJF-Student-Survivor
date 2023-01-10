@@ -1,4 +1,4 @@
 {"game": "graphics/game_background.jpg",
-"main_menu": "graphics/main_menu_background.jpg",
-"shop": "graphics/shop_background.jpg",
-"death_screen": "graphics/death_background.jpg"}
+  "main_menu": "graphics/main_menu_background.jpg",
+  "shop": "graphics/shop_background.jpg",
+  "death_screen": "graphics/death_background.jpg"}

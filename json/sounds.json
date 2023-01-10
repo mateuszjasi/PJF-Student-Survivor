@@ -1,8 +1,8 @@
 {"click": {"name": "audio/click.wav", "volume": 0.2},
-"enemy_got_hit": {"name": "audio/enemy_got_hit.wav", "volume": 0.05},
-"game_over": {"name": "audio/game_over.wav", "volume": 0.5},
-"level_up": {"name": "audio/level_up.wav", "volume": 0.3},
-"pick_up": {"name": "audio/pick_up.wav", "volume": 0.05},
-"pick_up_money": {"name": "audio/pick_up_money.wav", "volume": 0.2},
-"player_got_hit": {"name": "audio/player_got_hit.wav", "volume": 0.25},
-"shoot": {"name": "audio/shoot.wav", "volume": 0.03}}
+  "enemy_got_hit": {"name": "audio/enemy_got_hit.wav", "volume": 0.05},
+  "game_over": {"name": "audio/game_over.wav", "volume": 0.5},
+  "level_up": {"name": "audio/level_up.wav", "volume": 0.3},
+  "pick_up": {"name": "audio/pick_up.wav", "volume": 0.05},
+  "pick_up_money": {"name": "audio/pick_up_money.wav", "volume": 0.2},
+  "player_got_hit": {"name": "audio/player_got_hit.wav", "volume": 0.25},
+  "shoot": {"name": "audio/shoot.wav", "volume": 0.03}}

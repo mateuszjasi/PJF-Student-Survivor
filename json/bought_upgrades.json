@@ -1,7 +1,7 @@
 {"Bullet damage": [0, 20, "Increases bullet damage by 5% per level", 300, 0.05],
-"Fire rate": [0, 5, "Increases rate of fire cooldown by 5% per level", 1000, -0.05],
-"Bullet speed": [0, 5, "Increases bullet speed by 10% per level", 200, 0.05],
-"Bullet range": [0, 10, "Increases bullet range by 5% per level", 350, 0.05],
-"Health": [0, 7, "Increases health by 1 per level", 3000, 1],
-"Movement speed": [0, 2, "Increases movement speed by 1 per level", 5000, 1],
-"Pickup range": [0, 10, "Increases pickup range by 10% per level", 250, 0.1]}
+  "Fire rate": [0, 5, "Increases rate of fire cooldown by 5% per level", 1000, -0.05],
+  "Bullet speed": [0, 5, "Increases bullet speed by 10% per level", 200, 0.05],
+  "Bullet range": [0, 10, "Increases bullet range by 5% per level", 350, 0.05],
+  "Health": [0, 7, "Increases health by 1 per level", 3000, 1],
+  "Movement speed": [0, 2, "Increases movement speed by 1 per level", 5000, 1],
+  "Pickup range": [0, 10, "Increases pickup range by 10% per level", 250, 0.1]}
